@@ -3,772 +3,976 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Raio X Estratégico — Scall Business</title>
+<title>Scall Business — Raio X + Mentoria</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCaT85jfwQgoF2p-IP6dVWgnT7yMhx_8Sc",
-    authDomain: "sacall-raio-x.firebaseapp.com",
-    projectId: "sacall-raio-x",
-    storageBucket: "sacall-raio-x.firebasestorage.app",
-    messagingSenderId: "687883648533",
-    appId: "1:687883648533:web:e581345ed7f7a27111581c",
-    measurementId: "G-9L90Z27QPX"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyCaT85jfwQgoF2p-IP6dVWgnT7yMhx_8Sc",
+  authDomain: "sacall-raio-x.firebaseapp.com",
+  projectId: "sacall-raio-x",
+  storageBucket: "sacall-raio-x.firebasestorage.app",
+  messagingSenderId: "687883648533",
+  appId: "1:687883648533:web:e581345ed7f7a27111581c"
+};
 
-  const EMAILS_AUTORIZADOS = [
-    "raphael.salless@gmail.com",
-    "pierreem.digital@gmail.com",
-    "tomtteles@gmail.com",
-    "veleda.aline@gmail.com",
-    "liliangomes1256@gmail.com"
-  ];
+const EMAILS_AUTORIZADOS = [
+  "raphael.salless@gmail.com",
+  "pierreem.digital@gmail.com",
+  "tomtteles@gmail.com",
+  "veleda.aline@gmail.com",
+  "liliangomes1256@gmail.com"
+];
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const provider = new GoogleAuthProvider();
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
-  window.fazerLogin = async function() {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const email = result.user.email.toLowerCase();
-      if (!EMAILS_AUTORIZADOS.includes(email)) {
-        await signOut(auth);
-        document.getElementById('login-error').textContent = '⛔ Acesso negado. Este e-mail não está autorizado: ' + email;
-        document.getElementById('login-error').style.display = 'block';
-      }
-    } catch(e) {
-      document.getElementById('login-error').textContent = '❌ Erro ao fazer login. Tente novamente.';
+window.fazerLogin = async function() {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const email = result.user.email.toLowerCase();
+    if (!EMAILS_AUTORIZADOS.includes(email)) {
+      await signOut(auth);
+      document.getElementById('login-error').textContent = '⛔ Acesso negado: ' + email;
       document.getElementById('login-error').style.display = 'block';
     }
-  };
+  } catch(e) {
+    document.getElementById('login-error').textContent = '❌ Erro ao fazer login. Tente novamente.';
+    document.getElementById('login-error').style.display = 'block';
+  }
+};
 
-  window.fazerLogout = async function() {
-    await signOut(auth);
-  };
+window.fazerLogout = async function() { await signOut(auth); };
 
-  onAuthStateChanged(auth, (user) => {
-    if (user && EMAILS_AUTORIZADOS.includes(user.email.toLowerCase())) {
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('app-screen').style.display = 'block';
-      document.getElementById('user-name').textContent = user.displayName || user.email;
-      document.getElementById('user-email').textContent = user.email;
-      if (user.photoURL) document.getElementById('user-avatar').src = user.photoURL;
-    } else {
-      document.getElementById('login-screen').style.display = 'flex';
-      document.getElementById('app-screen').style.display = 'none';
+onAuthStateChanged(auth, (user) => {
+  if (user && EMAILS_AUTORIZADOS.includes(user.email.toLowerCase())) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('user-name').textContent = user.displayName || user.email;
+    document.getElementById('user-email').textContent = user.email;
+    if (user.photoURL) document.getElementById('user-avatar').src = user.photoURL;
+    window.currentUser = user;
+    carregarAlunos();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display = 'none';
+  }
+});
+
+// ══ ALUNOS ══
+window.salvarAluno = async function() {
+  const nome = document.getElementById('a-nome').value.trim();
+  const empresa = document.getElementById('a-empresa').value.trim();
+  const email = document.getElementById('a-email').value.trim();
+  const segmento = document.getElementById('a-segmento').value;
+  const inicio = document.getElementById('a-inicio').value;
+  if (!nome || !empresa) { alert('Nome e empresa são obrigatórios.'); return; }
+  try {
+    await addDoc(collection(db, 'alunos'), { nome, empresa, email, segmento, inicio, criadoEm: new Date().toISOString(), criadoPor: window.currentUser.email });
+    document.getElementById('a-nome').value = '';
+    document.getElementById('a-empresa').value = '';
+    document.getElementById('a-email').value = '';
+    document.getElementById('a-inicio').value = '';
+    fecharModal('modal-aluno');
+    carregarAlunos();
+    showToast('✅ Aluno cadastrado!');
+  } catch(e) { alert('Erro ao salvar: ' + e.message); }
+};
+
+window.carregarAlunos = async function() {
+  try {
+    const snap = await getDocs(collection(db, 'alunos'));
+    const alunos = [];
+    snap.forEach(d => alunos.push({ id: d.id, ...d.data() }));
+    window.alunosData = alunos;
+    renderAlunos(alunos);
+    preencherSelectAlunos(alunos);
+  } catch(e) { console.error(e); }
+};
+
+function renderAlunos(alunos) {
+  const grid = document.getElementById('alunos-grid');
+  if (!alunos.length) {
+    grid.innerHTML = '<div class="empty-state"><i class="ti ti-users"></i><p>Nenhum aluno cadastrado ainda.<br>Clique em "+ Novo Aluno" para começar.</p></div>';
+    return;
+  }
+  grid.innerHTML = alunos.map(a => `
+    <div class="aluno-card" onclick="abrirAluno('${a.id}')">
+      <div class="aluno-avatar">${(a.nome||'?')[0].toUpperCase()}</div>
+      <div class="aluno-info">
+        <h3>${a.nome}</h3>
+        <p>${a.empresa}</p>
+        <span class="aluno-tag">${a.segmento||'Mercado Livre'}</span>
+      </div>
+      <div class="aluno-meta">
+        <span>${a.email||''}</span>
+        <span>Início: ${a.inicio ? new Date(a.inicio+'T00:00:00').toLocaleDateString('pt-BR') : '—'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function preencherSelectAlunos(alunos) {
+  const sel = document.getElementById('s-aluno');
+  sel.innerHTML = '<option value="">Selecione o aluno...</option>' +
+    alunos.map(a => `<option value="${a.id}">${a.nome} — ${a.empresa}</option>`).join('');
+}
+
+window.abrirAluno = async function(alunoId) {
+  const aluno = window.alunosData.find(a => a.id === alunoId);
+  if (!aluno) return;
+  window.alunoAtual = aluno;
+  document.getElementById('detalhe-nome').textContent = aluno.nome;
+  document.getElementById('detalhe-empresa').textContent = aluno.empresa;
+  document.getElementById('detalhe-segmento').textContent = aluno.segmento || 'Mercado Livre';
+  document.getElementById('detalhe-email').textContent = aluno.email || '—';
+  document.getElementById('detalhe-inicio').textContent = aluno.inicio ? new Date(aluno.inicio+'T00:00:00').toLocaleDateString('pt-BR') : '—';
+  await carregarSessoesAluno(alunoId);
+  showMainTab('tab-dashboard');
+  renderDashboard(alunoId);
+  document.getElementById('detalhe-aluno').style.display = 'block';
+  document.getElementById('alunos-grid').style.display = 'none';
+  document.getElementById('btn-novo-aluno').style.display = 'none';
+  document.getElementById('btn-voltar-alunos').style.display = 'flex';
+};
+
+window.voltarAlunos = function() {
+  document.getElementById('detalhe-aluno').style.display = 'none';
+  document.getElementById('alunos-grid').style.display = 'grid';
+  document.getElementById('btn-novo-aluno').style.display = 'flex';
+  document.getElementById('btn-voltar-alunos').style.display = 'none';
+  window.alunoAtual = null;
+  destroyCharts();
+};
+
+// ══ SESSÕES ══
+window.salvarSessao = async function() {
+  const alunoId = document.getElementById('s-aluno').value;
+  const data = document.getElementById('s-data').value;
+  const numero = document.getElementById('s-numero').value;
+  const tema = document.getElementById('s-tema').value.trim();
+  const desafios = document.getElementById('s-desafios').value.trim();
+  const orientacoes = document.getElementById('s-orientacoes').value.trim();
+  const notaAntes = parseInt(document.getElementById('s-nota-antes').value) || 0;
+  const notaDepois = parseInt(document.getElementById('s-nota-depois').value) || 0;
+  const tarefasRaw = document.getElementById('s-tarefas').value.trim();
+  if (!alunoId || !data || !tema) { alert('Aluno, data e tema são obrigatórios.'); return; }
+  const tarefas = tarefasRaw ? tarefasRaw.split('\n').filter(t => t.trim()).map(t => ({ texto: t.trim(), feita: false })) : [];
+  try {
+    await addDoc(collection(db, 'sessoes'), {
+      alunoId, data, numero: parseInt(numero)||1, tema, desafios, orientacoes,
+      notaAntes, notaDepois, tarefas,
+      criadoEm: new Date().toISOString(), criadoPor: window.currentUser.email
+    });
+    fecharModal('modal-sessao');
+    document.getElementById('s-tema').value = '';
+    document.getElementById('s-desafios').value = '';
+    document.getElementById('s-orientacoes').value = '';
+    document.getElementById('s-tarefas').value = '';
+    if (window.alunoAtual && window.alunoAtual.id === alunoId) {
+      await carregarSessoesAluno(alunoId);
+      renderDashboard(alunoId);
     }
+    showToast('✅ Sessão registrada!');
+  } catch(e) { alert('Erro: ' + e.message); }
+};
+
+window.carregarSessoesAluno = async function(alunoId) {
+  try {
+    const q = query(collection(db, 'sessoes'), where('alunoId', '==', alunoId));
+    const snap = await getDocs(q);
+    const sessoes = [];
+    snap.forEach(d => sessoes.push({ id: d.id, ...d.data() }));
+    sessoes.sort((a, b) => new Date(a.data) - new Date(b.data));
+    window.sessoesAtual = sessoes;
+    renderSessoesLista(sessoes);
+  } catch(e) { console.error(e); }
+};
+
+function renderSessoesLista(sessoes) {
+  const lista = document.getElementById('sessoes-lista');
+  if (!sessoes.length) {
+    lista.innerHTML = '<div class="empty-state"><i class="ti ti-calendar"></i><p>Nenhuma sessão registrada.<br>Clique em "+ Nova Sessão" para adicionar.</p></div>';
+    return;
+  }
+  lista.innerHTML = sessoes.slice().reverse().map(s => `
+    <div class="sessao-card">
+      <div class="sessao-header">
+        <div class="sessao-num">Sessão ${s.numero||'?'}</div>
+        <div class="sessao-data">${s.data ? new Date(s.data+'T00:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+        <div class="sessao-notas">
+          <span class="nota-badge antes">${s.notaAntes||0}/10 antes</span>
+          <span class="nota-badge depois">${s.notaDepois||0}/10 depois</span>
+        </div>
+      </div>
+      <div class="sessao-tema"><i class="ti ti-bulb"></i> <strong>Tema:</strong> ${s.tema}</div>
+      ${s.desafios ? `<div class="sessao-bloco"><i class="ti ti-alert-triangle"></i> <strong>Desafios:</strong><br>${s.desafios.replace(/\n/g,'<br>')}</div>` : ''}
+      ${s.orientacoes ? `<div class="sessao-bloco"><i class="ti ti-direction"></i> <strong>Orientações do mentor:</strong><br>${s.orientacoes.replace(/\n/g,'<br>')}</div>` : ''}
+      ${s.tarefas && s.tarefas.length ? `
+        <div class="sessao-bloco">
+          <i class="ti ti-checklist"></i> <strong>Checklist de tarefas:</strong>
+          <ul class="task-list">
+            ${s.tarefas.map((t,i) => `
+              <li class="${t.feita?'feita':''}">
+                <input type="checkbox" ${t.feita?'checked':''} onchange="toggleTarefa('${s.id}',${i},this.checked)">
+                <span>${t.texto}</span>
+              </li>
+            `).join('')}
+          </ul>
+          <div class="task-progress">
+            <div class="task-bar" style="width:${s.tarefas.length?Math.round(s.tarefas.filter(t=>t.feita).length/s.tarefas.length*100):0}%"></div>
+          </div>
+          <div class="task-pct">${s.tarefas.filter(t=>t.feita).length}/${s.tarefas.length} concluídas</div>
+        </div>
+      ` : ''}
+    </div>
+  `).join('');
+}
+
+window.toggleTarefa = async function(sessaoId, idx, feita) {
+  const sessao = window.sessoesAtual.find(s => s.id === sessaoId);
+  if (!sessao) return;
+  sessao.tarefas[idx].feita = feita;
+  try {
+    await updateDoc(doc(db, 'sessoes', sessaoId), { tarefas: sessao.tarefas });
+    renderSessoesLista(window.sessoesAtual);
+    if (window.alunoAtual) renderDashboard(window.alunoAtual.id);
+    showToast('✅ Tarefa atualizada!');
+  } catch(e) { console.error(e); }
+};
+
+// ══ DASHBOARD ══
+let chartInstances = {};
+function destroyCharts() {
+  Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch(e){} });
+  chartInstances = {};
+}
+
+window.renderDashboard = function(alunoId) {
+  destroyCharts();
+  const sessoes = window.sessoesAtual || [];
+  if (!sessoes.length) {
+    document.getElementById('dash-empty').style.display = 'block';
+    document.getElementById('dash-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('dash-empty').style.display = 'none';
+  document.getElementById('dash-content').style.display = 'block';
+
+  // KPIs
+  const totalSessoes = sessoes.length;
+  const totalTarefas = sessoes.reduce((s,x) => s + (x.tarefas||[]).length, 0);
+  const tarefasFeitas = sessoes.reduce((s,x) => s + (x.tarefas||[]).filter(t=>t.feita).length, 0);
+  const pctTarefas = totalTarefas ? Math.round(tarefasFeitas/totalTarefas*100) : 0;
+  const ultimaNota = sessoes[sessoes.length-1]?.notaDepois || 0;
+  const evolucao = sessoes.length > 1 ? (sessoes[sessoes.length-1].notaDepois - sessoes[0].notaAntes) : 0;
+
+  document.getElementById('kpi-sessoes').textContent = totalSessoes;
+  document.getElementById('kpi-tarefas').textContent = pctTarefas + '%';
+  document.getElementById('kpi-nota').textContent = ultimaNota + '/10';
+  document.getElementById('kpi-evolucao').textContent = (evolucao >= 0 ? '+' : '') + evolucao + ' pts';
+  document.getElementById('kpi-evolucao').style.color = evolucao >= 0 ? '#70c870' : '#e07070';
+
+  // Gráfico 1 — Evolução de notas
+  const ctx1 = document.getElementById('chart-evolucao').getContext('2d');
+  chartInstances.evolucao = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: sessoes.map(s => 'Sess. ' + (s.numero||'?')),
+      datasets: [
+        { label: 'Nota antes', data: sessoes.map(s => s.notaAntes||0), borderColor: '#e07070', backgroundColor: 'rgba(224,112,112,0.1)', tension: 0.4, pointRadius: 5 },
+        { label: 'Nota depois', data: sessoes.map(s => s.notaDepois||0), borderColor: '#F5C518', backgroundColor: 'rgba(245,197,24,0.15)', tension: 0.4, pointRadius: 5, fill: true }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#a0a098', font: { size: 11 } } } }, scales: { x: { ticks: { color: '#a0a098' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { min: 0, max: 10, ticks: { color: '#a0a098' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
   });
+
+  // Gráfico 2 — Progresso de tarefas por sessão
+  const ctx2 = document.getElementById('chart-tarefas').getContext('2d');
+  chartInstances.tarefas = new Chart(ctx2, {
+    type: 'bar',
+    data: {
+      labels: sessoes.map(s => 'Sess. ' + (s.numero||'?')),
+      datasets: [
+        { label: 'Concluídas', data: sessoes.map(s => (s.tarefas||[]).filter(t=>t.feita).length), backgroundColor: 'rgba(112,200,112,0.7)', borderRadius: 6 },
+        { label: 'Pendentes', data: sessoes.map(s => (s.tarefas||[]).filter(t=>!t.feita).length), backgroundColor: 'rgba(224,112,112,0.5)', borderRadius: 6 }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#a0a098', font: { size: 11 } } } }, scales: { x: { stacked: true, ticks: { color: '#a0a098' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { stacked: true, ticks: { color: '#a0a098' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+  });
+
+  // Gráfico 3 — Radar de temas
+  const temaContagem = {};
+  sessoes.forEach(s => { if(s.tema) { const t = s.tema.substring(0,20); temaContagem[t] = (temaContagem[t]||0) + 1; } });
+  const temasLabels = Object.keys(temaContagem).slice(0, 6);
+  const temasData = temasLabels.map(t => temaContagem[t]);
+  const ctx3 = document.getElementById('chart-temas').getContext('2d');
+  chartInstances.temas = new Chart(ctx3, {
+    type: 'doughnut',
+    data: {
+      labels: temasLabels,
+      datasets: [{ data: temasData, backgroundColor: ['#F5C518','#70c870','#7090e0','#e07070','#c070c0','#70d0d0'], borderWidth: 0 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#a0a098', font: { size: 10 }, padding: 10 } } } }
+  });
+
+  // Timeline
+  const timeline = document.getElementById('timeline');
+  timeline.innerHTML = sessoes.slice().reverse().map(s => `
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-content">
+        <div class="timeline-header">
+          <strong>Sessão ${s.numero||'?'} — ${s.tema}</strong>
+          <span>${s.data ? new Date(s.data+'T00:00:00').toLocaleDateString('pt-BR') : '—'}</span>
+        </div>
+        <div class="timeline-notas">
+          <span class="nota-badge antes">${s.notaAntes||0}/10</span>
+          <i class="ti ti-arrow-right" style="font-size:12px;color:var(--text3)"></i>
+          <span class="nota-badge depois">${s.notaDepois||0}/10</span>
+          <span style="font-size:11px;color:${(s.notaDepois-s.notaAntes)>=0?'#70c870':'#e07070'}">${(s.notaDepois-s.notaAntes)>=0?'▲':'▼'} ${Math.abs(s.notaDepois-s.notaAntes)} pts</span>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">${(s.tarefas||[]).filter(t=>t.feita).length}/${(s.tarefas||[]).length} tarefas concluídas</div>
+      </div>
+    </div>
+  `).join('');
+};
+
+// Expor funções Firestore globalmente
+window._db = db;
+window._collection = collection;
+window._addDoc = addDoc;
+window._getDocs = getDocs;
 </script>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --yellow: #F5C518; --yellow-dark: #b8940a; --yellow-bg: rgba(245,197,24,0.10);
-  --bg: #f5f4f0; --bg2: #ffffff; --bg3: #eeece7;
-  --text: #1a1a18; --text2: #5a5a54; --text3: #8a8a82;
-  --border: rgba(0,0,0,0.10); --border2: rgba(0,0,0,0.18);
-  --radius-md: 8px; --radius-lg: 12px;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --yellow:#F5C518;--yellow-dark:#b8940a;--yellow-bg:rgba(245,197,24,0.10);
+  --bg:#f5f4f0;--bg2:#ffffff;--bg3:#eeece7;
+  --text:#1a1a18;--text2:#5a5a54;--text3:#8a8a82;
+  --border:rgba(0,0,0,0.10);--border2:rgba(0,0,0,0.18);
+  --radius-md:8px;--radius-lg:12px;
+  --green:#70c870;--red:#e07070;--blue:#7090e0;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --yellow-dark: #e0aa10; --bg: #1a1a18; --bg2: #232320; --bg3: #2a2a26;
-    --text: #e8e6de; --text2: #a0a098; --text3: #6a6a62;
-    --border: rgba(255,255,255,0.10); --border2: rgba(255,255,255,0.18);
-  }
+@media(prefers-color-scheme:dark){
+  :root{--yellow-dark:#e0aa10;--bg:#1a1a18;--bg2:#232320;--bg3:#2a2a26;
+    --text:#e8e6de;--text2:#a0a098;--text3:#6a6a62;
+    --border:rgba(255,255,255,0.10);--border2:rgba(255,255,255,0.18);}
 }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 
-/* ── LOGIN SCREEN ── */
-#login-screen {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 100vh; padding: 2rem;
-  background: linear-gradient(135deg, #1a1a18 0%, #2a2a20 100%);
-}
-.login-card {
-  background: #232320; border: 0.5px solid rgba(245,197,24,0.3);
-  border-radius: 16px; padding: 2.5rem 2rem; max-width: 380px; width: 100%;
-  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-}
-.login-logo { font-size: 40px; margin-bottom: 1rem; }
-.login-card h1 { font-size: 20px; font-weight: 700; color: #F5C518; margin-bottom: 4px; }
-.login-card p { font-size: 13px; color: #a0a098; margin-bottom: 2rem; }
-.login-divider { font-size: 11px; color: #6a6a62; margin: 1.25rem 0; text-transform: uppercase; letter-spacing: .08em; }
-.btn-google {
-  width: 100%; padding: 11px 16px; border-radius: 10px;
-  background: #ffffff; color: #1a1a18;
-  border: none; cursor: pointer; font-family: inherit;
-  font-size: 14px; font-weight: 600;
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  transition: all .15s;
-}
-.btn-google:hover { background: #f0f0f0; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-.btn-google img { width: 20px; height: 20px; }
-.login-error {
-  display: none; margin-top: 1rem; padding: 10px 14px;
-  background: rgba(180,40,40,0.15); border: 0.5px solid #8a2020;
-  border-radius: 8px; font-size: 12px; color: #e07070; text-align: left;
-}
-.login-badge {
-  margin-top: 1.5rem; padding: 8px 14px;
-  background: rgba(245,197,24,0.08); border: 0.5px solid rgba(245,197,24,0.2);
-  border-radius: 8px; font-size: 11px; color: #8a8a82;
-}
+/* LOGIN */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:linear-gradient(135deg,#1a1a18 0%,#2a2a20 100%);}
+.login-card{background:#232320;border:0.5px solid rgba(245,197,24,0.3);border-radius:16px;padding:2.5rem 2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+.login-logo{font-size:40px;margin-bottom:1rem;}
+.login-card h1{font-size:20px;font-weight:700;color:#F5C518;margin-bottom:4px;}
+.login-card p{font-size:13px;color:#a0a098;margin-bottom:2rem;}
+.btn-google{width:100%;padding:11px 16px;border-radius:10px;background:#ffffff;color:#1a1a18;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;}
+.btn-google:hover{background:#f0f0f0;transform:translateY(-1px);}
+.btn-google img{width:20px;height:20px;}
+.login-error{display:none;margin-top:1rem;padding:10px 14px;background:rgba(180,40,40,0.15);border:0.5px solid #8a2020;border-radius:8px;font-size:12px;color:#e07070;text-align:left;}
+.login-badge{margin-top:1.5rem;padding:8px 14px;background:rgba(245,197,24,0.08);border:0.5px solid rgba(245,197,24,0.2);border-radius:8px;font-size:11px;color:#8a8a82;}
 
-/* ── APP SCREEN ── */
-#app-screen { display: none; }
-.app-wrap { max-width: 820px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+/* APP */
+#app-screen{display:none;}
+.app-layout{display:flex;min-height:100vh;}
 
-.rx-header { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 1rem; }
-.rx-logo { width: 42px; height: 42px; border-radius: var(--radius-md); background: var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
-.rx-header-text { flex: 1; }
-.rx-header-text h1 { font-size: 16px; font-weight: 600; color: var(--text); }
-.rx-header-text p { font-size: 12px; color: var(--text2); margin-top: 1px; }
-.user-bar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.user-avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--yellow); object-fit: cover; }
-.user-info { text-align: right; }
-.user-info .uname { font-size: 12px; font-weight: 600; color: var(--text); }
-.user-info .uemail { font-size: 10px; color: var(--text3); }
-.btn-logout { background: transparent; border: 0.5px solid var(--border2); color: var(--text2); padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; }
-.btn-logout:hover { background: var(--bg3); }
+/* SIDEBAR */
+.sidebar{width:220px;background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;z-index:100;}
+.sidebar-logo{padding:1.25rem 1rem 1rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sidebar-logo-icon{width:36px;height:36px;background:var(--yellow);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.sidebar-logo-text h2{font-size:13px;font-weight:700;color:var(--text);}
+.sidebar-logo-text p{font-size:10px;color:var(--text3);}
+.sidebar-nav{flex:1;padding:.75rem .5rem;overflow-y:auto;}
+.sidebar-section{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:8px 8px 4px;}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius-md);cursor:pointer;font-size:13px;color:var(--text2);transition:all .12s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;font-family:inherit;}
+.sidebar-item i{font-size:16px;width:18px;}
+.sidebar-item:hover{background:var(--bg3);color:var(--text);}
+.sidebar-item.active{background:var(--yellow-bg);color:var(--yellow-dark);font-weight:600;border:0.5px solid var(--yellow-dark);}
+.sidebar-user{padding:.75rem 1rem;border-top:0.5px solid var(--border);}
+.sidebar-user-row{display:flex;align-items:center;gap:8px;}
+.sidebar-user-avatar{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--yellow);object-fit:cover;flex-shrink:0;}
+.sidebar-user-info{flex:1;min-width:0;}
+.sidebar-user-info .uname{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sidebar-user-info .uemail{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.btn-logout{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px;}
+.btn-logout:hover{color:var(--red);}
 
-.nav-tabs { display: flex; gap: 4px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
-.nav-tab { flex: 1; min-width: 80px; padding: 7px 10px; border-radius: var(--radius-md); border: none; background: transparent; font-size: 12px; color: var(--text2); cursor: pointer; text-align: center; transition: all .15s; white-space: nowrap; font-family: inherit; }
-.nav-tab.active { background: var(--yellow); color: #2a1a00; font-weight: 600; }
-.nav-tab:not(.active):hover { background: var(--bg3); color: var(--text); }
-.progress-bar-wrap { margin-bottom: 1.25rem; }
-.progress-bar-bg { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
-.progress-bar-fill { height: 100%; background: var(--yellow); border-radius: 2px; transition: width .3s; }
-.progress-label { font-size: 11px; color: var(--text3); margin-top: 4px; text-align: right; }
-.section { display: none; } .section.active { display: block; }
-.card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
-.card-title { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .75rem; display: flex; align-items: center; gap: 6px; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-@media(max-width:600px) { .grid-2,.grid-3 { grid-template-columns: 1fr; } }
-label { font-size: 13px; color: var(--text2); display: block; margin-bottom: 4px; }
-input[type=text], input[type=number], select, textarea { width: 100%; font-family: inherit; font-size: 13px; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: var(--radius-md); padding: 7px 10px; color: var(--text); outline: none; }
-input:focus, select:focus, textarea:focus { border-color: var(--yellow-dark); box-shadow: 0 0 0 2px rgba(245,197,24,0.2); }
-textarea { resize: vertical; min-height: 64px; }
-.status-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-.status-pill { padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg3); color: var(--text2); transition: all .12s; user-select: none; }
-.status-pill.sel-green { background: #1a4a1a; border-color: #2a7a2a; color: #80d880; }
-.status-pill.sel-yellow { background: #4a3a00; border-color: #8a6a00; color: #f0c840; }
-.status-pill.sel-red { background: #4a1010; border-color: #8a2020; color: #e07070; }
-.kpi-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-.kpi-box { flex: 1; min-width: 100px; background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; }
-.kpi-box label { font-size: 11px; margin-bottom: 4px; }
-.kpi-box input { background: transparent; border: none; border-bottom: 0.5px solid var(--border2); border-radius: 0; padding: 2px 0; font-size: 15px; font-weight: 600; }
-.kpi-box input:focus { box-shadow: none; border-bottom-color: var(--yellow-dark); }
-.section-header { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
-.section-header i { font-size: 18px; color: var(--yellow-dark); }
-.badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--yellow-bg); border: 0.5px solid var(--yellow-dark); color: var(--yellow-dark); font-weight: 600; }
-.table-produtos { width: 100%; font-size: 12px; border-collapse: collapse; }
-.table-produtos th { text-align: left; padding: 6px 8px; font-size: 11px; font-weight: 600; color: var(--text2); border-bottom: 0.5px solid var(--border); }
-.table-produtos td { padding: 4px 6px; border-bottom: 0.5px solid var(--border); }
-.table-produtos td input { background: transparent; border: none; width: 100%; font-size: 12px; padding: 2px 0; color: var(--text); font-family: inherit; }
-.table-produtos td input:focus { outline: none; border-bottom: 0.5px solid var(--yellow-dark); }
-.curva-a td { background: rgba(40,120,40,0.06); } .curva-b td { background: rgba(245,197,24,0.05); } .curva-c td { background: rgba(180,40,40,0.05); }
-.add-row-btn { font-size: 12px; color: var(--text2); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; margin-top: 8px; font-family: inherit; }
-.add-row-btn:hover { color: var(--text); }
-.diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media(max-width:600px) { .diag-grid { grid-template-columns: 1fr; } }
-.diag-card { background: var(--bg3); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: .9rem 1rem; }
-.diag-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
-.score-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.score-label { font-size: 12px; color: var(--text2); flex: 1; }
-.score-stars { display: flex; gap: 2px; }
-.star { font-size: 16px; cursor: pointer; color: var(--border2); line-height: 1; }
-.star.lit { color: var(--yellow); }
-.action-list { list-style: none; }
-.action-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text2); padding: 6px 0; border-bottom: 0.5px solid var(--border); }
-.action-list li:last-child { border-bottom: none; }
-.action-list li input[type=checkbox] { margin-top: 2px; accent-color: var(--yellow); }
-.action-list li span { flex: 1; }
-.priority-badge { font-size: 10px; padding: 2px 7px; border-radius: 8px; flex-shrink: 0; font-weight: 600; }
-.p-alta { background: #4a1010; color: #e07070; border: 0.5px solid #8a2020; }
-.p-media { background: #4a3a00; color: #f0c840; border: 0.5px solid #8a6a00; }
-.p-baixa { background: #0a2a0a; color: #70c870; border: 0.5px solid #1a6a1a; }
-.save-bar { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.5rem; padding-top: 1rem; border-top: 0.5px solid var(--border); }
-.btn-primary { background: var(--yellow); color: #2a1a00; border: none; padding: 8px 20px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
-.btn-secondary { background: transparent; color: var(--text2); border: 0.5px solid var(--border2); padding: 8px 20px; border-radius: var(--radius-md); font-size: 13px; cursor: pointer; font-family: inherit; }
-.btn-primary:hover { opacity: .88; } .btn-secondary:hover { background: var(--bg3); }
-.btn-pdf { background: #1a1a18; color: #F5C518; border: 1.5px solid #F5C518; padding: 9px 22px; border-radius: var(--radius-md); font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 7px; transition: all .15s; }
-.btn-pdf:hover { background: #F5C518; color: #1a1a18; }
-select option { background: var(--bg2); color: var(--text); }
-#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1a1a18; color: #F5C518; border: 1px solid #F5C518; padding: 10px 22px; border-radius: 24px; font-size: 13px; font-weight: 600; z-index: 9999; transition: transform .3s; pointer-events: none; }
-#toast.show { transform: translateX(-50%) translateY(0); }
+/* MAIN */
+.main-content{margin-left:220px;flex:1;padding:1.5rem;min-height:100vh;}
+.page{display:none;} .page.active{display:block;}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px;}
+.page-title{font-size:20px;font-weight:700;color:var(--text);}
+.page-subtitle{font-size:13px;color:var(--text2);margin-top:2px;}
+
+/* BOTÕES */
+.btn-primary{background:var(--yellow);color:#2a1a00;border:none;padding:8px 18px;border-radius:var(--radius-md);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;transition:all .12s;}
+.btn-primary:hover{opacity:.88;}
+.btn-secondary{background:transparent;color:var(--text2);border:0.5px solid var(--border2);padding:8px 18px;border-radius:var(--radius-md);font-size:13px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;}
+.btn-secondary:hover{background:var(--bg3);}
+.btn-ghost{background:none;border:none;color:var(--text2);cursor:pointer;font-family:inherit;font-size:13px;display:flex;align-items:center;gap:6px;}
+.btn-ghost:hover{color:var(--text);}
+
+/* CARDS */
+.card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1rem;}
+.card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;display:flex;align-items:center;gap:6px;}
+
+/* ALUNOS */
+#alunos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.aluno-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px;}
+.aluno-card:hover{border-color:var(--yellow-dark);box-shadow:0 4px 16px rgba(245,197,24,0.1);transform:translateY(-2px);}
+.aluno-avatar{width:40px;height:40px;border-radius:50%;background:var(--yellow);color:#2a1a00;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;}
+.aluno-info h3{font-size:14px;font-weight:600;color:var(--text);}
+.aluno-info p{font-size:12px;color:var(--text2);}
+.aluno-tag{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--yellow-bg);border:0.5px solid var(--yellow-dark);color:var(--yellow-dark);font-weight:600;}
+.aluno-meta{font-size:11px;color:var(--text3);display:flex;flex-direction:column;gap:2px;}
+
+/* DETALHE ALUNO */
+#detalhe-aluno{display:none;}
+.detalhe-header{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
+.detalhe-avatar{width:52px;height:52px;border-radius:50%;background:var(--yellow);color:#2a1a00;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;flex-shrink:0;}
+.detalhe-info{flex:1;}
+.detalhe-info h2{font-size:18px;font-weight:700;color:var(--text);}
+.detalhe-info p{font-size:13px;color:var(--text2);}
+.detalhe-meta{display:flex;gap:16px;margin-top:6px;flex-wrap:wrap;}
+.detalhe-meta span{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:4px;}
+
+/* SUB TABS */
+.sub-tabs{display:flex;gap:4px;background:var(--bg3);border-radius:var(--radius-md);padding:4px;margin-bottom:1rem;width:fit-content;}
+.sub-tab{padding:6px 14px;border-radius:6px;border:none;background:none;font-size:12px;color:var(--text2);cursor:pointer;font-family:inherit;transition:all .12s;}
+.sub-tab.active{background:var(--bg2);color:var(--text);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+.sub-page{display:none;} .sub-page.active{display:block;}
+
+/* KPIs DASH */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1rem;}
+@media(max-width:700px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+.kpi-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem;text-align:center;}
+.kpi-card .kpi-val{font-size:28px;font-weight:700;color:var(--yellow);margin:4px 0;}
+.kpi-card .kpi-label{font-size:11px;color:var(--text3);}
+
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem;}
+@media(max-width:700px){.charts-grid{grid-template-columns:1fr;}}
+.chart-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem;}
+.chart-card h3{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem;}
+.chart-wrap{position:relative;height:180px;}
+.chart-wide{grid-column:1/-1;}
+
+/* SESSÕES */
+.sessao-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:.75rem;}
+.sessao-header{display:flex;align-items:center;gap:10px;margin-bottom:.75rem;flex-wrap:wrap;}
+.sessao-num{font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;background:var(--yellow-bg);border:0.5px solid var(--yellow-dark);color:var(--yellow-dark);}
+.sessao-data{font-size:12px;color:var(--text3);}
+.sessao-notas{display:flex;gap:6px;margin-left:auto;}
+.nota-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;}
+.nota-badge.antes{background:rgba(224,112,112,0.12);color:#e07070;border:0.5px solid #e07070;}
+.nota-badge.depois{background:rgba(112,200,112,0.12);color:#70c870;border:0.5px solid #70c870;}
+.sessao-tema{font-size:13px;color:var(--text);margin-bottom:.5rem;display:flex;align-items:flex-start;gap:6px;}
+.sessao-bloco{font-size:12px;color:var(--text2);margin-top:.5rem;padding:.5rem .75rem;background:var(--bg3);border-radius:var(--radius-md);display:flex;flex-direction:column;gap:4px;}
+.sessao-bloco i{color:var(--yellow-dark);}
+.task-list{list-style:none;margin-top:6px;display:flex;flex-direction:column;gap:4px;}
+.task-list li{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);}
+.task-list li.feita span{text-decoration:line-through;color:var(--text3);}
+.task-list li input{accent-color:var(--yellow);}
+.task-progress{height:4px;background:var(--bg);border-radius:2px;margin-top:8px;overflow:hidden;}
+.task-bar{height:100%;background:var(--green);border-radius:2px;transition:width .3s;}
+.task-pct{font-size:10px;color:var(--text3);margin-top:3px;}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:20px;}
+.timeline::before{content:'';position:absolute;left:6px;top:0;bottom:0;width:2px;background:var(--border);}
+.timeline-item{position:relative;margin-bottom:1rem;}
+.timeline-dot{position:absolute;left:-17px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--yellow);border:2px solid var(--bg);}
+.timeline-content{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:.75rem 1rem;}
+.timeline-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.timeline-header strong{font-size:13px;color:var(--text);}
+.timeline-header span{font-size:11px;color:var(--text3);}
+.timeline-notas{display:flex;align-items:center;gap:6px;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:1rem;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;}
+.modal-header h2{font-size:16px;font-weight:700;color:var(--text);}
+.modal-close{background:none;border:none;font-size:20px;color:var(--text2);cursor:pointer;line-height:1;}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:1.25rem;padding-top:1rem;border-top:0.5px solid var(--border);}
+.form-group{margin-bottom:.875rem;}
+.form-group label{font-size:13px;color:var(--text2);display:block;margin-bottom:4px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;font-family:inherit;font-size:13px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-md);padding:8px 10px;color:var(--text);outline:none;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--yellow-dark);box-shadow:0 0 0 2px rgba(245,197,24,0.2);}
+.form-group textarea{resize:vertical;min-height:80px;}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:500px){.form-grid-2{grid-template-columns:1fr;}}
+.form-hint{font-size:11px;color:var(--text3);margin-top:3px;}
+
+/* RAIO X */
+.rx-nav-tabs{display:flex;gap:4px;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:6px;flex-wrap:wrap;margin-bottom:1rem;}
+.rx-nav-tab{flex:1;min-width:70px;padding:7px 8px;border-radius:var(--radius-md);border:none;background:transparent;font-size:11px;color:var(--text2);cursor:pointer;text-align:center;transition:all .15s;white-space:nowrap;font-family:inherit;}
+.rx-nav-tab.active{background:var(--yellow);color:#2a1a00;font-weight:600;}
+.rx-nav-tab:not(.active):hover{background:var(--bg3);color:var(--text);}
+.rx-section{display:none;} .rx-section.active{display:block;}
+.rx-section-header{font-size:15px;font-weight:600;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:8px;}
+.rx-section-header i{color:var(--yellow-dark);}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--yellow-bg);border:0.5px solid var(--yellow-dark);color:var(--yellow-dark);font-weight:600;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:600px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+label{font-size:13px;color:var(--text2);display:block;margin-bottom:4px;}
+input[type=text],input[type=number],select,textarea{width:100%;font-family:inherit;font-size:13px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-md);padding:7px 10px;color:var(--text);outline:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--yellow-dark);box-shadow:0 0 0 2px rgba(245,197,24,0.2);}
+textarea{resize:vertical;min-height:64px;}
+.status-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.status-pill{padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:0.5px solid var(--border2);background:var(--bg3);color:var(--text2);transition:all .12s;user-select:none;}
+.status-pill.sel-green{background:#1a4a1a;border-color:#2a7a2a;color:#80d880;}
+.status-pill.sel-yellow{background:#4a3a00;border-color:#8a6a00;color:#f0c840;}
+.status-pill.sel-red{background:#4a1010;border-color:#8a2020;color:#e07070;}
+.kpi-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+.kpi-box{flex:1;min-width:100px;background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;}
+.kpi-box label{font-size:11px;margin-bottom:4px;}
+.kpi-box input{background:transparent;border:none;border-bottom:0.5px solid var(--border2);border-radius:0;padding:2px 0;font-size:15px;font-weight:600;}
+.kpi-box input:focus{box-shadow:none;border-bottom-color:var(--yellow-dark);}
+.table-produtos{width:100%;font-size:12px;border-collapse:collapse;}
+.table-produtos th{text-align:left;padding:6px 8px;font-size:11px;font-weight:600;color:var(--text2);border-bottom:0.5px solid var(--border);}
+.table-produtos td{padding:4px 6px;border-bottom:0.5px solid var(--border);}
+.table-produtos td input{background:transparent;border:none;width:100%;font-size:12px;padding:2px 0;color:var(--text);font-family:inherit;}
+.table-produtos td input:focus{outline:none;border-bottom:0.5px solid var(--yellow-dark);}
+.curva-a td{background:rgba(40,120,40,0.06);} .curva-b td{background:rgba(245,197,24,0.05);} .curva-c td{background:rgba(180,40,40,0.05);}
+.add-row-btn{font-size:12px;color:var(--text2);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;margin-top:8px;font-family:inherit;}
+.add-row-btn:hover{color:var(--text);}
+.diag-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:600px){.diag-grid{grid-template-columns:1fr;}}
+.diag-card{background:var(--bg3);border:0.5px solid var(--border);border-radius:var(--radius-md);padding:.9rem 1rem;}
+.diag-card h3{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text);}
+.score-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.score-label{font-size:12px;color:var(--text2);flex:1;}
+.score-stars{display:flex;gap:2px;}
+.star{font-size:16px;cursor:pointer;color:var(--border2);line-height:1;}
+.star.lit{color:var(--yellow);}
+.action-list{list-style:none;}
+.action-list li{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--text2);padding:6px 0;border-bottom:0.5px solid var(--border);}
+.action-list li:last-child{border-bottom:none;}
+.action-list li input[type=checkbox]{margin-top:2px;accent-color:var(--yellow);}
+.action-list li span{flex:1;}
+.priority-badge{font-size:10px;padding:2px 7px;border-radius:8px;flex-shrink:0;font-weight:600;}
+.p-alta{background:#4a1010;color:#e07070;border:0.5px solid #8a2020;}
+.p-media{background:#4a3a00;color:#f0c840;border:0.5px solid #8a6a00;}
+.p-baixa{background:#0a2a0a;color:#70c870;border:0.5px solid #1a6a1a;}
+.save-bar{display:flex;justify-content:flex-end;gap:8px;margin-top:1.5rem;padding-top:1rem;border-top:0.5px solid var(--border);}
+.btn-pdf{background:#1a1a18;color:#F5C518;border:1.5px solid #F5C518;padding:9px 22px;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:7px;transition:all .15s;}
+.btn-pdf:hover{background:#F5C518;color:#1a1a18;}
+select option{background:var(--bg2);color:var(--text);}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text3);}
+.empty-state i{font-size:48px;margin-bottom:1rem;display:block;}
+.empty-state p{font-size:14px;line-height:1.6;}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1a1a18;color:#F5C518;border:1px solid #F5C518;padding:10px 22px;border-radius:24px;font-size:13px;font-weight:600;z-index:9999;transition:transform .3s;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+@media(max-width:768px){.sidebar{width:60px;}.sidebar-logo-text,.sidebar-item span,.sidebar-section,.sidebar-user-info{display:none;}.sidebar-item{justify-content:center;padding:10px;}.main-content{margin-left:60px;}}
 </style>
 </head>
 <body>
+<div id="toast">⚡</div>
 
-<div id="toast">⚡ Gerando PDF...</div>
-
-<!-- ══ TELA DE LOGIN ══ -->
+<!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">⚡</div>
     <h1>Scall Business</h1>
-    <p>Raio X Estratégico — Mercado Livre<br>Acesso restrito à equipe autorizada</p>
+    <p>Plataforma de Mentoria — Mercado Livre<br>Acesso restrito à equipe autorizada</p>
     <button class="btn-google" onclick="fazerLogin()">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
       Entrar com Google
     </button>
     <div id="login-error" class="login-error"></div>
-    <div class="login-badge">🔒 Apenas e-mails autorizados pela Scall Business têm acesso</div>
+    <div class="login-badge">🔒 Apenas e-mails autorizados pela Scall Business</div>
   </div>
 </div>
 
-<!-- ══ TELA DO APP ══ -->
+<!-- APP -->
 <div id="app-screen">
-<div class="app-wrap">
+  <div class="app-layout">
 
-  <div class="rx-header">
-    <div class="rx-logo">⚡</div>
-    <div class="rx-header-text">
-      <h1>Raio X Estratégico — Scall Business</h1>
-      <p>Diagnóstico completo da operação no Mercado Livre</p>
-    </div>
-    <div class="user-bar">
-      <div class="user-info">
-        <div class="uname" id="user-name"></div>
-        <div class="uemail" id="user-email"></div>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">⚡</div>
+        <div class="sidebar-logo-text">
+          <h2>Scall Business</h2>
+          <p>Mentoria ML</p>
+        </div>
       </div>
-      <img class="user-avatar" id="user-avatar" src="" alt="avatar">
-      <button class="btn-logout" onclick="fazerLogout()">Sair</button>
-    </div>
-  </div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-section">Mentoria</div>
+        <button class="sidebar-item active" onclick="showPage('page-alunos')" id="nav-alunos">
+          <i class="ti ti-users"></i><span>Alunos</span>
+        </button>
+        <button class="sidebar-item" onclick="showPage('page-sessoes')" id="nav-sessoes">
+          <i class="ti ti-calendar-event"></i><span>Sessões</span>
+        </button>
+        <div class="sidebar-section">Diagnóstico</div>
+        <button class="sidebar-item" onclick="showPage('page-raiox')" id="nav-raiox">
+          <i class="ti ti-bolt"></i><span>Raio X</span>
+        </button>
+      </nav>
+      <div class="sidebar-user">
+        <div class="sidebar-user-row">
+          <img class="sidebar-user-avatar" id="user-avatar" src="" alt="">
+          <div class="sidebar-user-info">
+            <div class="uname" id="user-name"></div>
+            <div class="uemail" id="user-email"></div>
+          </div>
+          <button class="btn-logout" onclick="fazerLogout()" title="Sair"><i class="ti ti-logout"></i></button>
+        </div>
+      </div>
+    </aside>
 
-  <nav class="nav-tabs" role="tablist">
-    <button class="nav-tab active" onclick="showTab('conta')" id="tab-conta"><i class="ti ti-shield-check"></i> Conta</button>
-    <button class="nav-tab" onclick="showTab('produtos')" id="tab-produtos"><i class="ti ti-package"></i> Produtos</button>
-    <button class="nav-tab" onclick="showTab('operacao')" id="tab-operacao"><i class="ti ti-truck"></i> Operação</button>
-    <button class="nav-tab" onclick="showTab('ads')" id="tab-ads"><i class="ti ti-speakerphone"></i> Ads</button>
-    <button class="nav-tab" onclick="showTab('erp')" id="tab-erp"><i class="ti ti-database"></i> ERP / Int.</button>
-    <button class="nav-tab" onclick="showTab('diagnostico')" id="tab-diagnostico"><i class="ti ti-chart-bar"></i> Diagnóstico</button>
-    <button class="nav-tab" onclick="showTab('kpis')" id="tab-kpis"><i class="ti ti-target"></i> KPIs</button>
-  </nav>
+    <!-- MAIN -->
+    <main class="main-content">
 
-  <div class="progress-bar-wrap">
-    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill" style="width:14%"></div></div>
-    <div class="progress-label" id="progress-label">Módulo 1 de 7</div>
-  </div>
-
-  <!-- CONTA -->
-  <div class="section active" id="section-conta">
-    <div class="section-header"><i class="ti ti-shield-check"></i> Saúde da Conta <span class="badge">Módulo 0</span></div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-user"></i> Identificação</div>
-      <div class="grid-2">
-        <div><label>Nome da loja / Seller</label><input type="text" id="f-loja" placeholder="Ex: Loja XYZ Oficial"></div>
-        <div><label>CNPJ / CPF</label><input type="text" id="f-cnpj" placeholder="00.000.000/0001-00"></div>
-        <div><label>Nível do vendedor</label><select id="f-nivel"><option>Selecione...</option><option>MercadoLíder Platinum</option><option>MercadoLíder Gold</option><option>MercadoLíder</option><option>Clássico</option><option>Novo</option></select></div>
-        <div><label>Tempo de conta (anos)</label><input type="number" id="f-tempo" placeholder="Ex: 3"></div>
-        <div><label>Limite de vendas atual (R$)</label><input type="number" id="f-limite" placeholder="Ex: 150000"></div>
-        <div><label>Restrições ativas</label><select id="f-restricoes"><option>Nenhuma</option><option>Restrição de envio</option><option>Limitação de cadastro</option><option>Penalidade em andamento</option><option>Outra</option></select></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-star"></i> Indicadores de reputação</div>
-      <div class="grid-3">
-        <div><label>% Reclamações (últ. 60 dias)</label><input type="number" id="f-reclamacoes" placeholder="Ex: 2.5"></div>
-        <div><label>% Cancelamentos</label><input type="number" id="f-cancelamentos" placeholder="Ex: 1.2"></div>
-        <div><label>% Atrasos de envio</label><input type="number" id="f-atrasos" placeholder="Ex: 3.8"></div>
-        <div><label>Nota de atendimento</label><input type="number" id="f-nota" placeholder="Ex: 4.8"></div>
-        <div><label>Perguntas sem resposta (%)</label><input type="number" id="f-perguntas" placeholder="Ex: 5"></div>
-        <div><label>Termômetro atual</label><select id="f-termometro"><option>Verde</option><option>Amarelo</option><option>Laranja</option><option>Vermelho</option></select></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-chart-line"></i> Faturamento</div>
-      <div class="kpi-row">
-        <div class="kpi-box"><label>GMV últ. 30 dias</label><input type="text" id="f-gmv30" placeholder="R$ 0"></div>
-        <div class="kpi-box"><label>GMV últ. 90 dias</label><input type="text" id="f-gmv90" placeholder="R$ 0"></div>
-        <div class="kpi-box"><label>Pedidos / mês</label><input type="text" id="f-pedidos" placeholder="0"></div>
-        <div class="kpi-box"><label>Ticket médio</label><input type="text" id="f-ticket" placeholder="R$ 0"></div>
-        <div class="kpi-box"><label>Produtos ativos</label><input type="text" id="f-prod-ativos" placeholder="0"></div>
-      </div>
-    </div>
-    <div class="save-bar"><button class="btn-primary" onclick="showTab('produtos')">Próximo →</button></div>
-  </div>
-
-  <!-- PRODUTOS -->
-  <div class="section" id="section-produtos">
-    <div class="section-header"><i class="ti ti-package"></i> Análise de Produtos — Curvas A, B e C</div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-layout-list"></i> Curva A — Top performers (80% do faturamento)</div>
-      <table class="table-produtos"><thead><tr><th>SKU / Título</th><th>Categoria</th><th>GMV/mês (R$)</th><th>Margem (%)</th><th>Posição</th><th>Status</th></tr></thead>
-      <tbody id="body-a">
-        <tr class="curva-a"><td><input type="text" placeholder="Ex: Fone BT Pro X"></td><td><input type="text" placeholder="Eletrônicos"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td></tr>
-        <tr class="curva-a"><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td></tr>
-      </tbody></table>
-      <button class="add-row-btn" onclick="addRow('body-a','curva-a')"><i class="ti ti-plus"></i> Adicionar produto</button>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-layout-list"></i> Curva B — Potencial de crescimento (15%)</div>
-      <table class="table-produtos"><thead><tr><th>SKU / Título</th><th>Categoria</th><th>GMV/mês (R$)</th><th>Margem (%)</th><th>Posição</th><th>Status</th></tr></thead>
-      <tbody id="body-b"><tr class="curva-b"><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td></tr></tbody></table>
-      <button class="add-row-btn" onclick="addRow('body-b','curva-b')"><i class="ti ti-plus"></i> Adicionar produto</button>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-layout-list"></i> Curva C — Baixo retorno (5%)</div>
-      <table class="table-produtos"><thead><tr><th>SKU / Título</th><th>Categoria</th><th>GMV/mês (R$)</th><th>Margem (%)</th><th>Posição</th><th>Status</th></tr></thead>
-      <tbody id="body-c"><tr class="curva-c"><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td></tr></tbody></table>
-      <button class="add-row-btn" onclick="addRow('body-c','curva-c')"><i class="ti ti-plus"></i> Adicionar produto</button>
-    </div>
-    <div class="save-bar"><button class="btn-secondary" onclick="showTab('conta')">← Anterior</button><button class="btn-primary" onclick="showTab('operacao')">Próximo →</button></div>
-  </div>
-
-  <!-- OPERAÇÃO -->
-  <div class="section" id="section-operacao">
-    <div class="section-header"><i class="ti ti-truck"></i> Operação Logística e Estoque</div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-building-warehouse"></i> Modelo de fulfillment</div>
-      <div class="status-row" id="sr-fulfillment">
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">FULL (Envio por ML)</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Fulfillment próprio</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Flex</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Cross-docking</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Dropshipping</span>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-package"></i> Estoque e abastecimento</div>
-      <div class="grid-2">
-        <div><label>Giro médio (dias)</label><input type="number" id="f-giro" placeholder="25"></div>
-        <div><label>Rupturas / mês</label><input type="number" id="f-rupturas" placeholder="3"></div>
-        <div><label>Estoque no FULL (un)</label><input type="number" id="f-full" placeholder="500"></div>
-        <div><label>Lead time reposição (dias)</label><input type="number" id="f-lead" placeholder="7"></div>
-        <div><label>Maior problema</label><select id="f-prob-estoque"><option>Nenhum</option><option>Ruptura frequente</option><option>Excesso</option><option>Giro baixo</option><option>Curva A em risco</option></select></div>
-        <div><label>Previsão de demanda</label><select id="f-previsao"><option>Não</option><option>Manual / planilha</option><option>Ferramenta dedicada</option><option>ERP com módulo</option></select></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-clock"></i> Pós-venda</div>
-      <div class="grid-2">
-        <div><label>TMA</label><input type="text" id="f-tma" placeholder="Ex: 2h"></div>
-        <div><label>% Devolução</label><input type="number" id="f-devolucao" placeholder="3.5"></div>
-        <div><label>Principal motivo de reclamação</label><input type="text" id="f-motivo" placeholder="Ex: Produto diferente"></div>
-        <div><label>Equipe CS</label><select id="f-cs"><option>Não</option><option>Sim, 1 pessoa</option><option>Sim, equipe</option><option>Terceirizado</option></select></div>
-      </div>
-    </div>
-    <div class="save-bar"><button class="btn-secondary" onclick="showTab('produtos')">← Anterior</button><button class="btn-primary" onclick="showTab('ads')">Próximo →</button></div>
-  </div>
-
-  <!-- ADS -->
-  <div class="section" id="section-ads">
-    <div class="section-header"><i class="ti ti-speakerphone"></i> Mercado Ads</div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-settings"></i> Estrutura</div>
-      <div class="grid-2">
-        <div><label>Product Ads</label><select id="f-product-ads"><option>Não usa</option><option>Sim, automático</option><option>Sim, manual</option><option>Misto</option></select></div>
-        <div><label>Brand Ads</label><select id="f-brand-ads"><option>Não usa</option><option>Sim, ativo</option><option>Sem verba</option></select></div>
-        <div><label>Orçamento mensal (R$)</label><input type="number" id="f-orcamento-ads" placeholder="8000"></div>
-        <div><label>Campanhas ativas</label><input type="number" id="f-campanhas" placeholder="12"></div>
-        <div><label>Segmentação</label>
-          <div class="status-row" id="sr-segmentacao" style="margin-top:4px">
-            <span class="status-pill" onclick="togglePill(this,'sel-green')">Palavras-chave</span>
-            <span class="status-pill" onclick="togglePill(this,'sel-green')">Audiências</span>
-            <span class="status-pill" onclick="togglePill(this,'sel-green')">Automática</span>
-            <span class="status-pill" onclick="togglePill(this,'sel-green')">Concorrente</span>
+      <!-- ══ PÁGINA: ALUNOS ══ -->
+      <div class="page active" id="page-alunos">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Alunos</div>
+            <div class="page-subtitle">Gerencie os alunos da mentoria</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary" id="btn-voltar-alunos" onclick="voltarAlunos()" style="display:none"><i class="ti ti-arrow-left"></i> Voltar</button>
+            <button class="btn-primary" id="btn-novo-aluno" onclick="abrirModal('modal-aluno')"><i class="ti ti-plus"></i> Novo Aluno</button>
           </div>
         </div>
-        <div><label>Freq. otimização</label><select id="f-freq-otim"><option>Nunca</option><option>Mensal</option><option>Semanal</option><option>Diário</option></select></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-chart-pie"></i> Performance</div>
-      <div class="kpi-row">
-        <div class="kpi-box"><label>ACOS (%)</label><input type="text" id="f-acos" placeholder="0%"></div>
-        <div class="kpi-box"><label>ROAS</label><input type="text" id="f-roas" placeholder="0x"></div>
-        <div class="kpi-box"><label>CTR (%)</label><input type="text" id="f-ctr" placeholder="0%"></div>
-        <div class="kpi-box"><label>Conversão (%)</label><input type="text" id="f-conv" placeholder="0%"></div>
-        <div class="kpi-box"><label>Receita via Ads (%)</label><input type="text" id="f-rec-ads" placeholder="0%"></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-alert-triangle"></i> Problemas</div>
-      <div class="status-row" id="sr-problemas-ads">
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">ACOS alto</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Sem conversão</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Sem estratégia</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Curva C consumindo verba</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Sem relatório</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Concorrência agressiva</span>
-      </div>
-      <div style="margin-top:12px"><label>Observações</label><textarea id="f-obs-ads" placeholder="Situações específicas..."></textarea></div>
-    </div>
-    <div class="save-bar"><button class="btn-secondary" onclick="showTab('operacao')">← Anterior</button><button class="btn-primary" onclick="showTab('erp')">Próximo →</button></div>
-  </div>
 
-  <!-- ERP -->
-  <div class="section" id="section-erp">
-    <div class="section-header"><i class="ti ti-database"></i> ERP e Integrações</div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-plug"></i> Stack tecnológico</div>
-      <div class="grid-2">
-        <div><label>ERP</label><input type="text" id="f-erp" placeholder="Ex: Bling, Tiny, TOTVS..."></div>
-        <div><label>Conector ML</label><input type="text" id="f-conector" placeholder="Ex: Anymarket, Omie..."></div>
-        <div><label>Precificação</label><input type="text" id="f-precificacao" placeholder="Ex: Reprecê, manual..."></div>
-        <div><label>BI / Dashboards</label><input type="text" id="f-bi" placeholder="Ex: Power BI, planilhas..."></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-alert-triangle"></i> Problemas ativos</div>
-      <div class="status-row" id="sr-problemas-erp">
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Sincronização estoque</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Cadastro de produtos</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Precificação automática</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Emissão de NF</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Conciliação financeira</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-red')">Relatórios</span>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-check"></i> Funcionando bem</div>
-      <div class="status-row" id="sr-ok-erp">
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Sincronização estoque</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Cadastro de produtos</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Precificação automática</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Emissão de NF</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Conciliação financeira</span>
-        <span class="status-pill" onclick="togglePill(this,'sel-green')">Relatórios</span>
-      </div>
-      <div style="margin-top:12px"><label>Observações</label><textarea id="f-obs-erp" placeholder="Problemas recorrentes..."></textarea></div>
-    </div>
-    <div class="save-bar"><button class="btn-secondary" onclick="showTab('ads')">← Anterior</button><button class="btn-primary" onclick="showTab('diagnostico')">Gerar diagnóstico →</button></div>
-  </div>
+        <div id="alunos-grid">
+          <div class="empty-state"><i class="ti ti-users"></i><p>Carregando alunos...</p></div>
+        </div>
 
-  <!-- DIAGNÓSTICO -->
-  <div class="section" id="section-diagnostico">
-    <div class="section-header"><i class="ti ti-chart-bar"></i> Diagnóstico Consolidado</div>
-    <div class="diag-grid">
-      <div class="diag-card">
-        <h3><i class="ti ti-shield-check" style="color:var(--yellow-dark)"></i> Saúde da conta</h3>
-        <div class="score-row"><span class="score-label">Reputação</span><div class="score-stars" id="stars-reputacao"><span class="star lit" onclick="setScore('reputacao',1)">★</span><span class="star lit" onclick="setScore('reputacao',2)">★</span><span class="star lit" onclick="setScore('reputacao',3)">★</span><span class="star" onclick="setScore('reputacao',4)">★</span><span class="star" onclick="setScore('reputacao',5)">★</span></div></div>
-        <div class="score-row"><span class="score-label">Crescimento</span><div class="score-stars" id="stars-crescimento"><span class="star lit" onclick="setScore('crescimento',1)">★</span><span class="star lit" onclick="setScore('crescimento',2)">★</span><span class="star" onclick="setScore('crescimento',3)">★</span><span class="star" onclick="setScore('crescimento',4)">★</span><span class="star" onclick="setScore('crescimento',5)">★</span></div></div>
-        <textarea id="f-diag-conta" placeholder="Resumo..." style="margin-top:8px;font-size:12px;min-height:56px"></textarea>
-      </div>
-      <div class="diag-card">
-        <h3><i class="ti ti-package" style="color:var(--yellow-dark)"></i> Portfólio</h3>
-        <div class="score-row"><span class="score-label">Mix e posicionamento</span><div class="score-stars" id="stars-mix"><span class="star lit" onclick="setScore('mix',1)">★</span><span class="star lit" onclick="setScore('mix',2)">★</span><span class="star lit" onclick="setScore('mix',3)">★</span><span class="star" onclick="setScore('mix',4)">★</span><span class="star" onclick="setScore('mix',5)">★</span></div></div>
-        <div class="score-row"><span class="score-label">Qualidade de anúncios</span><div class="score-stars" id="stars-anuncios"><span class="star lit" onclick="setScore('anuncios',1)">★</span><span class="star lit" onclick="setScore('anuncios',2)">★</span><span class="star" onclick="setScore('anuncios',3)">★</span><span class="star" onclick="setScore('anuncios',4)">★</span><span class="star" onclick="setScore('anuncios',5)">★</span></div></div>
-        <textarea id="f-diag-produtos" placeholder="Pontos de melhoria..." style="margin-top:8px;font-size:12px;min-height:56px"></textarea>
-      </div>
-      <div class="diag-card">
-        <h3><i class="ti ti-speakerphone" style="color:var(--yellow-dark)"></i> Mercado Ads</h3>
-        <div class="score-row"><span class="score-label">Estrutura</span><div class="score-stars" id="stars-estrutura-ads"><span class="star lit" onclick="setScore('estrutura-ads',1)">★</span><span class="star" onclick="setScore('estrutura-ads',2)">★</span><span class="star" onclick="setScore('estrutura-ads',3)">★</span><span class="star" onclick="setScore('estrutura-ads',4)">★</span><span class="star" onclick="setScore('estrutura-ads',5)">★</span></div></div>
-        <div class="score-row"><span class="score-label">Performance / ROAS</span><div class="score-stars" id="stars-roas-d"><span class="star lit" onclick="setScore('roas-d',1)">★</span><span class="star lit" onclick="setScore('roas-d',2)">★</span><span class="star" onclick="setScore('roas-d',3)">★</span><span class="star" onclick="setScore('roas-d',4)">★</span><span class="star" onclick="setScore('roas-d',5)">★</span></div></div>
-        <textarea id="f-diag-ads" placeholder="Ações sugeridas..." style="margin-top:8px;font-size:12px;min-height:56px"></textarea>
-      </div>
-      <div class="diag-card">
-        <h3><i class="ti ti-database" style="color:var(--yellow-dark)"></i> ERP</h3>
-        <div class="score-row"><span class="score-label">Maturidade tecnológica</span><div class="score-stars" id="stars-erp-d"><span class="star lit" onclick="setScore('erp-d',1)">★</span><span class="star lit" onclick="setScore('erp-d',2)">★</span><span class="star" onclick="setScore('erp-d',3)">★</span><span class="star" onclick="setScore('erp-d',4)">★</span><span class="star" onclick="setScore('erp-d',5)">★</span></div></div>
-        <div class="score-row"><span class="score-label">Automação</span><div class="score-stars" id="stars-automacao"><span class="star lit" onclick="setScore('automacao',1)">★</span><span class="star" onclick="setScore('automacao',2)">★</span><span class="star" onclick="setScore('automacao',3)">★</span><span class="star" onclick="setScore('automacao',4)">★</span><span class="star" onclick="setScore('automacao',5)">★</span></div></div>
-        <textarea id="f-diag-erp" placeholder="Prioridades de correção..." style="margin-top:8px;font-size:12px;min-height:56px"></textarea>
-      </div>
-    </div>
-    <div class="card" style="margin-top:1rem">
-      <div class="card-title"><i class="ti ti-list-check"></i> Plano de ação</div>
-      <ul class="action-list" id="action-list">
-        <li><input type="checkbox"><span><strong>Ads:</strong> Reestruturar campanhas — separar curva A com lances manuais</span><span class="priority-badge p-alta">Alta</span></li>
-        <li><input type="checkbox"><span><strong>Operação:</strong> Mapear SKUs da curva A com risco de ruptura</span><span class="priority-badge p-alta">Alta</span></li>
-        <li><input type="checkbox"><span><strong>ERP:</strong> Corrigir sincronização de estoque</span><span class="priority-badge p-media">Média</span></li>
-        <li><input type="checkbox"><span><strong>Produtos:</strong> Revisar títulos e fotos da curva B</span><span class="priority-badge p-media">Média</span></li>
-        <li><input type="checkbox"><span><strong>Todos:</strong> Definir cadência semanal de KPIs</span><span class="priority-badge p-baixa">Baixa</span></li>
-      </ul>
-      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <input type="text" id="new-action" placeholder="Nova ação..." style="flex:1;min-width:180px">
-        <select id="new-priority" style="width:90px"><option value="p-alta">Alta</option><option value="p-media">Média</option><option value="p-baixa">Baixa</option></select>
-        <button class="btn-primary" onclick="addAction()" style="padding:7px 14px">+ Adicionar</button>
-      </div>
-    </div>
-    <div class="save-bar"><button class="btn-secondary" onclick="showTab('erp')">← Anterior</button><button class="btn-primary" onclick="showTab('kpis')">Ver KPIs →</button></div>
-  </div>
+        <!-- DETALHE DO ALUNO -->
+        <div id="detalhe-aluno">
+          <div class="detalhe-header">
+            <div class="detalhe-avatar" id="detalhe-inicial">?</div>
+            <div class="detalhe-info">
+              <h2 id="detalhe-nome">—</h2>
+              <p id="detalhe-empresa">—</p>
+              <div class="detalhe-meta">
+                <span><i class="ti ti-tag"></i> <span id="detalhe-segmento">—</span></span>
+                <span><i class="ti ti-mail"></i> <span id="detalhe-email">—</span></span>
+                <span><i class="ti ti-calendar"></i> Início: <span id="detalhe-inicio">—</span></span>
+              </div>
+            </div>
+            <button class="btn-primary" onclick="abrirModalSessaoAluno()"><i class="ti ti-plus"></i> Nova Sessão</button>
+          </div>
 
-  <!-- KPIs -->
-  <div class="section" id="section-kpis">
-    <div class="section-header"><i class="ti ti-target"></i> Painel de KPIs</div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-chart-line"></i> Metas</div>
-      <div class="kpi-row">
-        <div class="kpi-box"><label>GMV meta / mês</label><input type="text" id="f-gmv-meta" placeholder="R$"></div>
-        <div class="kpi-box"><label>Margem líquida alvo</label><input type="text" id="f-margem-meta" placeholder="%"></div>
-        <div class="kpi-box"><label>ROAS alvo</label><input type="text" id="f-roas-meta" placeholder="x"></div>
-        <div class="kpi-box"><label>ACOS máx.</label><input type="text" id="f-acos-meta" placeholder="%"></div>
-        <div class="kpi-box"><label>Meta reclamações</label><input type="text" id="f-reclam-meta" placeholder="< %"></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-calendar"></i> Cadência</div>
-      <div class="grid-3">
-        <div><label>Review semanal</label><select id="f-dia-review"><option>Segunda-feira</option><option>Terça-feira</option><option>Quarta-feira</option><option>Quinta-feira</option><option>Sexta-feira</option></select></div>
-        <div><label>Responsável cliente</label><input type="text" id="f-responsavel" placeholder="Nome"></div>
-        <div><label>Formato</label><select id="f-formato"><option>Google Meet</option><option>Zoom</option><option>Presencial</option><option>Async</option></select></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title"><i class="ti ti-user-check"></i> Especialistas</div>
-      <div class="grid-2">
-        <div><label>Ads</label><input type="text" id="f-esp-ads" placeholder="Nome"></div>
-        <div><label>Operação</label><input type="text" id="f-esp-op" placeholder="Nome"></div>
-        <div><label>ERP / Tech</label><input type="text" id="f-esp-erp" placeholder="Nome"></div>
-        <div><label>Produtos</label><input type="text" id="f-esp-prod" placeholder="Nome"></div>
-      </div>
-    </div>
-    <div class="save-bar">
-      <button class="btn-secondary" onclick="showTab('diagnostico')">← Diagnóstico</button>
-      <button class="btn-pdf" onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Gerar PDF do Diagnóstico</button>
-    </div>
-  </div>
+          <div class="sub-tabs">
+            <button class="sub-tab active" onclick="showMainTab('tab-dashboard')" id="btn-tab-dashboard"><i class="ti ti-chart-bar"></i> Dashboard</button>
+            <button class="sub-tab" onclick="showMainTab('tab-sessoes-aluno')" id="btn-tab-sessoes"><i class="ti ti-list"></i> Sessões</button>
+          </div>
 
-</div>
-</div>
+          <!-- DASHBOARD DO ALUNO -->
+          <div class="sub-page active" id="tab-dashboard">
+            <div id="dash-empty" class="empty-state" style="display:none">
+              <i class="ti ti-chart-bar"></i>
+              <p>Nenhuma sessão registrada ainda.<br>Adicione a primeira sessão para ver o dashboard.</p>
+            </div>
+            <div id="dash-content" style="display:none">
+              <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-label">Sessões realizadas</div><div class="kpi-val" id="kpi-sessoes">0</div></div>
+                <div class="kpi-card"><div class="kpi-label">Tarefas concluídas</div><div class="kpi-val" id="kpi-tarefas">0%</div></div>
+                <div class="kpi-card"><div class="kpi-label">Nota atual</div><div class="kpi-val" id="kpi-nota">0/10</div></div>
+                <div class="kpi-card"><div class="kpi-label">Evolução total</div><div class="kpi-val" id="kpi-evolucao">0 pts</div></div>
+              </div>
+              <div class="charts-grid">
+                <div class="chart-card chart-wide">
+                  <h3><i class="ti ti-trending-up"></i> Evolução de notas por sessão</h3>
+                  <div class="chart-wrap"><canvas id="chart-evolucao"></canvas></div>
+                </div>
+                <div class="chart-card">
+                  <h3><i class="ti ti-checklist"></i> Tarefas por sessão</h3>
+                  <div class="chart-wrap"><canvas id="chart-tarefas"></canvas></div>
+                </div>
+                <div class="chart-card">
+                  <h3><i class="ti ti-chart-pie"></i> Temas abordados</h3>
+                  <div class="chart-wrap"><canvas id="chart-temas"></canvas></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title"><i class="ti ti-timeline"></i> Timeline de sessões</div>
+                <div class="timeline" id="timeline"></div>
+              </div>
+            </div>
+          </div>
 
-<script>
-const { jsPDF } = window.jspdf;
-const tabs = ['conta','produtos','operacao','ads','erp','diagnostico','kpis'];
-function showTab(id) {
-  tabs.forEach(function(t){
-    document.getElementById('section-'+t).classList.toggle('active',t===id);
-    document.getElementById('tab-'+t).classList.toggle('active',t===id);
-  });
-  var idx=tabs.indexOf(id);
-  document.getElementById('progress-fill').style.width=Math.round(((idx+1)/tabs.length)*100)+'%';
-  document.getElementById('progress-label').textContent='Módulo '+(idx+1)+' de '+tabs.length;
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-function togglePill(el,cls){
-  var classes=['sel-green','sel-yellow','sel-red'];
-  var on=classes.some(function(c){return el.classList.contains(c);});
-  classes.forEach(function(c){el.classList.remove(c);});
-  if(!on) el.classList.add(cls);
-}
-function addRow(tbodyId,rowClass){
-  var tbody=document.getElementById(tbodyId);
-  var tr=document.createElement('tr'); tr.className=rowClass;
-  tr.innerHTML='<td><input type="text"></td><td><input type="text"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td>';
-  tbody.appendChild(tr);
-}
-function setScore(id,val){
-  document.querySelectorAll('#stars-'+id+' .star').forEach(function(s,i){s.classList.toggle('lit',i<val);});
-}
-function addAction(){
-  var txt=document.getElementById('new-action').value.trim(); if(!txt)return;
-  var pri=document.getElementById('new-priority').value;
-  var labels={'p-alta':'Alta','p-media':'Média','p-baixa':'Baixa'};
-  var li=document.createElement('li');
-  li.innerHTML='<input type="checkbox"><span>'+txt+'</span><span class="priority-badge '+pri+'">'+(labels[pri]||pri)+'</span>';
-  document.getElementById('action-list').appendChild(li);
-  document.getElementById('new-action').value='';
-}
-function getVal(id){var el=document.getElementById(id);return el?el.value||'':''}
-function getScore(id){return document.querySelectorAll('#stars-'+id+' .star.lit').length;}
-function getPills(rowId){
-  var sel=[];
-  document.querySelectorAll('#'+rowId+' .status-pill').forEach(function(p){
-    if(['sel-green','sel-yellow','sel-red'].some(function(x){return p.classList.contains(x);})) sel.push(p.textContent.trim());
-  });
-  return sel.join(', ')||'—';
-}
-function getTableData(tbodyId){
-  var rows=[];
-  document.querySelectorAll('#'+tbodyId+' tr').forEach(function(tr){
-    var cells=[];
-    tr.querySelectorAll('input,select').forEach(function(el){cells.push(el.value||'');});
-    if(cells.some(function(v){return v!==''&&v!=='Ativo';})) rows.push(cells);
-  });
-  return rows;
-}
-function getActions(){
-  var items=[];
-  document.querySelectorAll('#action-list li').forEach(function(li){
-    var span=li.querySelector('span');var badge=li.querySelector('.priority-badge');
-    var checked=li.querySelector('input[type=checkbox]').checked;
-    if(span) items.push({text:span.textContent.trim(),pri:badge?badge.textContent.trim():'',done:checked});
-  });
-  return items;
-}
-function showToast(msg){
-  var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  setTimeout(function(){t.classList.remove('show');},3000);
-}
-function gerarPDF(){
-  showToast('⚡ Gerando PDF...');
-  setTimeout(function(){
-    try{
-      var doc=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
-      var W=210,margin=14,cw=W-margin*2,y=0;
-      function checkPage(n){if(y+n>272){doc.addPage();y=14;}}
-      function secTitle(txt){
-        checkPage(12);
-        doc.setFillColor(245,197,24);doc.roundedRect(margin,y,cw,8,2,2,'F');
-        doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(42,26,0);
-        doc.text(txt,margin+3,y+5.5);doc.setTextColor(30,30,28);y+=11;
-      }
-      function subTitle(txt){
-        checkPage(8);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(90,90,84);
-        doc.text(txt.toUpperCase(),margin,y+4);y+=7;
-      }
-      function row2(l1,v1,l2,v2){
-        checkPage(10);var half=(cw-4)/2;
-        doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(90,90,84);
-        doc.text(l1,margin,y+3);if(l2)doc.text(l2,margin+half+4,y+3);
-        doc.setTextColor(30,30,28);doc.setFont('helvetica','bold');
-        doc.text(v1||'—',margin,y+7.5);if(l2)doc.text(v2||'—',margin+half+4,y+7.5);
-        y+=10;
-      }
-      function multiLine(txt){
-        if(!txt||!txt.trim())return;
-        checkPage(8);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(30,30,28);
-        doc.splitTextToSize(txt,cw).forEach(function(line){checkPage(5);doc.text(line,margin,y+4);y+=5;});y+=2;
-      }
-      function divider(){checkPage(4);doc.setDrawColor(220,218,210);doc.line(margin,y,W-margin,y);y+=4;}
-      function stars(label,score){
-        checkPage(7);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(90,90,84);
-        doc.text(label,margin,y+4);
-        for(var i=0;i<5;i++){doc.setTextColor(i<score?245:200,i<score?197:200,i<score?24:200);doc.text('★',margin+60+i*5,y+4);}
-        doc.setTextColor(30,30,28);y+=7;
-      }
-      // CAPA
-      doc.setFillColor(26,26,24);doc.rect(0,0,W,297,'F');
-      doc.setFillColor(245,197,24);doc.rect(0,0,W,2,'F');doc.rect(0,295,W,2,'F');
-      doc.setFontSize(22);doc.setFont('helvetica','bold');doc.setTextColor(245,197,24);
-      doc.text('RAIO X ESTRATEGICO',W/2,80,{align:'center'});
-      doc.setFontSize(14);doc.setTextColor(232,230,222);
-      doc.text('Scall Business - Mercado Livre',W/2,94,{align:'center'});
-      var loja=getVal('f-loja');var nivel=getVal('f-nivel');
-      if(loja){doc.setFontSize(16);doc.setTextColor(245,197,24);doc.text(loja,W/2,115,{align:'center'});}
-      if(nivel&&nivel!=='Selecione...'){doc.setFontSize(10);doc.setTextColor(160,160,152);doc.text(nivel,W/2,124,{align:'center'});}
-      doc.setFontSize(9);doc.setTextColor(100,100,92);
-      doc.text('Gerado em: '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}),W/2,270,{align:'center'});
-      // CONTA
-      doc.addPage();y=14;secTitle('SAUDE DA CONTA');
-      subTitle('Identificacao');
-      row2('Nome da loja',getVal('f-loja'),'CNPJ/CPF',getVal('f-cnpj'));
-      row2('Nivel',getVal('f-nivel'),'Tempo de conta',getVal('f-tempo')+' anos');
-      row2('Limite de vendas','R$ '+getVal('f-limite'),'Restricoes',getVal('f-restricoes'));
-      divider();subTitle('Reputacao');
-      row2('Reclamacoes',getVal('f-reclamacoes')+'%','Cancelamentos',getVal('f-cancelamentos')+'%');
-      row2('Atrasos',getVal('f-atrasos')+'%','Nota atendimento',getVal('f-nota'));
-      row2('Perguntas s/ resposta',getVal('f-perguntas')+'%','Termometro',getVal('f-termometro'));
-      divider();subTitle('Faturamento');
-      row2('GMV 30 dias',getVal('f-gmv30'),'GMV 90 dias',getVal('f-gmv90'));
-      row2('Pedidos/mes',getVal('f-pedidos'),'Ticket medio',getVal('f-ticket'));
-      row2('Produtos ativos',getVal('f-prod-ativos'),'','');
-      // PRODUTOS
-      doc.addPage();y=14;secTitle('ANALISE DE PRODUTOS - CURVAS A, B e C');
-      [['body-a','CURVA A - Top Performers',[40,120,40]],['body-b','CURVA B - Potencial',[180,140,0]],['body-c','CURVA C - Baixo Retorno',[180,40,40]]].forEach(function(cv){
-        checkPage(14);subTitle(cv[1]);
-        var rows=getTableData(cv[0]);
-        if(!rows.length){doc.setFontSize(8);doc.setTextColor(140,140,132);doc.text('Nenhum produto.',margin,y+4);y+=7;}
-        else{
-          var cols=['SKU/Titulo','Categoria','GMV/mes','Margem%','Posicao','Status'];
-          var colW=[55,35,25,20,18,25];var cx=margin;
-          doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
-          cols.forEach(function(c,i){doc.setFillColor(cv[2][0],cv[2][1],cv[2][2]);doc.rect(cx,y,colW[i],5.5,'F');doc.text(c,cx+1.5,y+3.8);cx+=colW[i];});
-          y+=6.5;
-          rows.forEach(function(row,ri){
-            checkPage(6);cx=margin;
-            doc.setFont('helvetica','normal');doc.setTextColor(30,30,28);
-            if(ri%2===0){doc.setFillColor(248,247,242);}else{doc.setFillColor(255,255,255);}
-            doc.rect(margin,y,cw,5.5,'F');
-            row.forEach(function(cell,ci){if(ci<colW.length){doc.setFontSize(7.5);doc.text(String(cell||'—').substring(0,16),cx+1.5,y+3.8);cx+=colW[ci];}});
-            y+=5.5;
-          });
-        }
-        y+=4;
-      });
-      // OPERACAO
-      doc.addPage();y=14;secTitle('OPERACAO LOGISTICA E ESTOQUE');
-      subTitle('Fulfillment');multiLine('Tipo: '+getPills('sr-fulfillment'));divider();
-      subTitle('Estoque');
-      row2('Giro medio',getVal('f-giro')+' dias','Rupturas/mes',getVal('f-rupturas'));
-      row2('Estoque FULL',getVal('f-full')+' un','Lead time',getVal('f-lead')+' dias');
-      row2('Problema principal',getVal('f-prob-estoque'),'Previsao demanda',getVal('f-previsao'));
-      divider();subTitle('Pos-venda');
-      row2('TMA',getVal('f-tma'),'% Devolucao',getVal('f-devolucao')+'%');
-      row2('Motivo reclamacao',getVal('f-motivo'),'Equipe CS',getVal('f-cs'));
-      // ADS
-      doc.addPage();y=14;secTitle('MERCADO ADS - DIAGNOSTICO');
-      subTitle('Estrutura');
-      row2('Product Ads',getVal('f-product-ads'),'Brand Ads',getVal('f-brand-ads'));
-      row2('Orcamento mensal','R$ '+getVal('f-orcamento-ads'),'Campanhas ativas',getVal('f-campanhas'));
-      row2('Freq. otimizacao',getVal('f-freq-otim'),'Segmentacao',getPills('sr-segmentacao'));
-      divider();subTitle('Performance');
-      row2('ACOS',getVal('f-acos'),'ROAS',getVal('f-roas'));
-      row2('CTR',getVal('f-ctr'),'Conversao Ads',getVal('f-conv'));
-      row2('Receita via Ads',getVal('f-rec-ads'),'','');
-      divider();subTitle('Problemas');multiLine(getPills('sr-problemas-ads'));
-      divider();subTitle('Observacoes');multiLine(getVal('f-obs-ads'));
-      // ERP
-      doc.addPage();y=14;secTitle('ERP E INTEGRACOES');
-      subTitle('Stack');
-      row2('ERP',getVal('f-erp'),'Conector ML',getVal('f-conector'));
-      row2('Precificacao',getVal('f-precificacao'),'BI/Dashboards',getVal('f-bi'));
-      divider();subTitle('Problemas ativos');multiLine(getPills('sr-problemas-erp'));
-      divider();subTitle('Funcionando bem');multiLine(getPills('sr-ok-erp'));
-      divider();subTitle('Observacoes');multiLine(getVal('f-obs-erp'));
-      // DIAGNOSTICO
-      doc.addPage();y=14;secTitle('DIAGNOSTICO CONSOLIDADO');
-      [{label:'Saude da conta',scores:[['Reputacao',getScore('reputacao')],['Crescimento',getScore('crescimento')]],obs:getVal('f-diag-conta')},
-       {label:'Portfolio',scores:[['Mix',getScore('mix')],['Qualidade anuncios',getScore('anuncios')]],obs:getVal('f-diag-produtos')},
-       {label:'Mercado Ads',scores:[['Estrutura',getScore('estrutura-ads')],['ROAS',getScore('roas-d')]],obs:getVal('f-diag-ads')},
-       {label:'ERP',scores:[['Maturidade',getScore('erp-d')],['Automacao',getScore('automacao')]],obs:getVal('f-diag-erp')}
-      ].forEach(function(d){
-        checkPage(30);
-        doc.setFillColor(238,236,231);doc.roundedRect(margin,y,cw,5,1,1,'F');
-        doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(30,30,28);
-        doc.text(d.label,margin+3,y+3.5);y+=7;
-        d.scores.forEach(function(s){stars(s[0],s[1]);});
-        if(d.obs)multiLine(d.obs);y+=3;
-      });
-      divider();subTitle('Plano de acao');
-      getActions().forEach(function(a){
-        checkPage(8);
-        var pc={'Alta':[74,16,16,224,112,112],'Media':[74,58,0,240,200,64],'Baixa':[10,42,10,112,200,112]}[a.pri]||[74,58,0,240,200,64];
-        doc.setFillColor(pc[0],pc[1],pc[2]);doc.roundedRect(margin,y,6,5,1,1,'F');
-        doc.setTextColor(255,255,255);doc.setFontSize(7);doc.setFont('helvetica','bold');
-        doc.text(a.done?'V':'!',margin+1.8,y+3.5);
-        doc.setTextColor(30,30,28);doc.setFont('helvetica','normal');doc.setFontSize(8);
-        var lines=doc.splitTextToSize(a.text,cw-20);
-        doc.text(lines[0]||'',margin+8,y+3.5);
-        doc.setFillColor(pc[0],pc[1],pc[2]);doc.roundedRect(W-margin-14,y+0.5,13,4,1,1,'F');
-        doc.setTextColor(pc[3],pc[4],pc[5]);doc.setFontSize(7);doc.setFont('helvetica','bold');
-        doc.text(a.pri,W-margin-13,y+3.2);
-        doc.setTextColor(30,30,28);y+=7;
-        if(lines.length>1)lines.slice(1).forEach(function(l){checkPage(5);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text(l,margin+8,y+3.5);y+=5;});
-      });
-      // KPIs
-      doc.addPage();y=14;secTitle('PAINEL DE KPIs');
-      subTitle('Metas');
-      row2('GMV meta/mes',getVal('f-gmv-meta'),'Margem alvo',getVal('f-margem-meta'));
-      row2('ROAS alvo',getVal('f-roas-meta'),'ACOS max.',getVal('f-acos-meta'));
-      row2('Meta reclamacoes',getVal('f-reclam-meta'),'','');
-      divider();subTitle('Cadencia');
-      row2('Review semanal',getVal('f-dia-review'),'Formato',getVal('f-formato'));
-      row2('Responsavel',getVal('f-responsavel'),'','');
-      divider();subTitle('Especialistas');
-      row2('Ads',getVal('f-esp-ads'),'Operacao',getVal('f-esp-op'));
-      row2('ERP/Tech',getVal('f-esp-erp'),'Produtos',getVal('f-esp-prod'));
-      // RODAPE
-      var total=doc.internal.getNumberOfPages();
-      for(var pg=2;pg<=total;pg++){
-        doc.setPage(pg);
-        doc.setFontSize(7);doc.setTextColor(160,160,152);
-        doc.text('Scall Business - Raio X Estrategico - Mercado Livre',margin,291);
-        doc.text('Pagina '+pg+' de '+total,W-margin,291,{align:'right'});
-        doc.setDrawColor(245,197,24);doc.line(margin,288,W-margin,288);
-      }
-      var nome='RaioX_Scall_'+(getVal('f-loja')||'ML').replace(/\s+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf';
-      doc.save(nome);
-      showToast('PDF gerado com sucesso!');
-    }catch(e){console.error(e);showToast('Erro ao gerar PDF.');}
-  },200);
-}
-</script>
-</body>
-</html>
+          <!-- SESSÕES DO ALUNO -->
+          <div class="sub-page" id="tab-sessoes-aluno">
+            <div id="sessoes-lista"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ PÁGINA: SESSÕES (global) ══ -->
+      <div class="page" id="page-sessoes">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Nova Sessão</div>
+            <div class="page-subtitle">Registre uma sessão de mentoria</div>
+          </div>
+          <button class="btn-primary" onclick="abrirModal('modal-sessao')"><i class="ti ti-plus"></i> Registrar Sessão</button>
+        </div>
+        <div class="empty-state">
+          <i class="ti ti-calendar-event"></i>
+          <p>Para registrar uma sessão, clique em "+ Registrar Sessão"<br>ou acesse o perfil do aluno na aba Alunos.</p>
+        </div>
+      </div>
+
+      <!-- ══ PÁGINA: RAIO X ══ -->
+      <div class="page" id="page-raiox">
+        <div class="page-header">
+          <div>
+            <div class="page-title">⚡ Raio X Estratégico</div>
+            <div class="page-subtitle">Diagnóstico completo da operação no Mercado Livre</div>
+          </div>
+          <button class="btn-pdf" onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
+        </div>
+
+        <nav class="rx-nav-tabs">
+          <button class="rx-nav-tab active" onclick="showRxTab('rx-conta')" id="rxtab-conta"><i class="ti ti-shield-check"></i> Conta</button>
+          <button class="rx-nav-tab" onclick="showRxTab('rx-produtos')" id="rxtab-produtos"><i class="ti ti-package"></i> Produtos</button>
+          <button class="rx-nav-tab" onclick="showRxTab('rx-operacao')" id="rxtab-operacao"><i class="ti ti-truck"></i> Operação</button>
+          <button class="rx-nav-tab" onclick="showRxTab('rx-ads')" id="rxtab-ads"><i class="ti ti-speakerphone"></i> Ads</button>
+          <button class="rx-nav-tab" onclick="showRxTab('rx-erp')" id="rxtab-erp"><i class="ti ti-database"></i> ERP</button>
+          <button class="rx-nav-tab" onclick="showRxTab('rx-diagnostico')" id="rxtab-diagnostico"><i class="ti ti-chart-bar"></i> Diagnóstico</button>
+          <button class="rx-nav-tab" onclick="showRxTab('rx-kpis')" id="rxtab-kpis"><i class="ti ti-target"></i> KPIs</button>
+        </nav>
+
+        <!-- CONTA -->
+        <div class="rx-section active" id="rx-conta">
+          <div class="rx-section-header"><i class="ti ti-shield-check"></i> Saúde da Conta <span class="badge">Módulo 0</span></div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-user"></i> Identificação</div>
+            <div class="grid-2">
+              <div><label>Nome da loja / Seller</label><input type="text" id="f-loja" placeholder="Ex: Loja XYZ Oficial"></div>
+              <div><label>CNPJ / CPF</label><input type="text" id="f-cnpj" placeholder="00.000.000/0001-00"></div>
+              <div><label>Nível do vendedor</label><select id="f-nivel"><option>Selecione...</option><option>MercadoLíder Platinum</option><option>MercadoLíder Gold</option><option>MercadoLíder</option><option>Clássico</option><option>Novo</option></select></div>
+              <div><label>Tempo de conta (anos)</label><input type="number" id="f-tempo" placeholder="3"></div>
+              <div><label>Limite de vendas (R$)</label><input type="number" id="f-limite" placeholder="150000"></div>
+              <div><label>Restrições ativas</label><select id="f-restricoes"><option>Nenhuma</option><option>Restrição de envio</option><option>Limitação de cadastro</option><option>Penalidade em andamento</option><option>Outra</option></select></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-star"></i> Reputação</div>
+            <div class="grid-3">
+              <div><label>% Reclamações</label><input type="number" id="f-reclamacoes" placeholder="2.5"></div>
+              <div><label>% Cancelamentos</label><input type="number" id="f-cancelamentos" placeholder="1.2"></div>
+              <div><label>% Atrasos</label><input type="number" id="f-atrasos" placeholder="3.8"></div>
+              <div><label>Nota atendimento</label><input type="number" id="f-nota" placeholder="4.8"></div>
+              <div><label>Perguntas s/ resposta (%)</label><input type="number" id="f-perguntas" placeholder="5"></div>
+              <div><label>Termômetro</label><select id="f-termometro"><option>Verde</option><option>Amarelo</option><option>Laranja</option><option>Vermelho</option></select></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="ti ti-chart-line"></i> Faturamento</div>
+            <div class="kpi-row">
+              <div class="kpi-box"><label>GMV 30 dias</label><input type="text" id="f-gmv30" placeholder="R$ 0"></div>
+              <div class="kpi-box"><label>GMV 90 dias</label><input type="text" id="f-gmv90" placeholder="R$ 0"></div>
+              <div class="kpi-box"><label>Pedidos/mês</label><input type="text" id="f-pedidos" placeholder="0"></div>
+              <div class="kpi-box"><label>Ticket médio</label><input type="text" id="f-ticket" placeholder="R$ 0"></div>
+              <div class="kpi-box"><label>Produtos ativos</label><input type="text" id="f-prod-ativos" placeholder="0"></div>
+            </div>
+          </div>
+          <div class="save-bar"><button class="btn-primary" onclick="showRxTab('rx-produtos')">Próximo →</button></div>
+        </div>
+
+        <!-- PRODUTOS -->
+        <div class="rx-section" id="rx-produtos">
+          <div class="rx-section-header"><i class="ti ti-package"></i> Curvas A, B e C</div>
+          <div class="card">
+            <div class="card-title">Curva A — Top performers (80%)</div>
+            <table class="table-produtos"><thead><tr><th>SKU/Título</th><th>Categoria</th><th>GMV/mês</th><th>Margem%</th><th>Posição</th><th>Status</th></tr></thead>
+            <tbody id="body-a">
+              <tr class="curva-a"><td><input type="text" placeholder="Ex: Fone BT Pro X"></td><td><input type="text"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td></tr>
+            </tbody></table>
+            <button class="add-row-btn" onclick="addRow('body-a','curva-a')"><i class="ti ti-plus"></i> Adicionar</button>
+          </div>
+          <div class="card">
+            <div class="card-title">Curva B — Potencial (15%)</div>
+            <table class="table-produtos"><thead><tr><th>SKU/Título</th><th>Categoria</th><th>GMV/mês</th><th>Margem%</th><th>Posição</th><th>Status</th></tr></thead>
+            <tbody id="body-b"><tr class="curva-b"><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td></tr></tbody></table>
+            <button class="add-row-btn" onclick="addRow('body-b','curva-b')"><i class="ti ti-plus"></i> Adicionar</button>
+          </div>
+          <div class="card">
+            <div class="card-title">Curva C — Baixo retorno (5%)</div>
+            <table class="table-produtos"><thead><tr><th>SKU/Título</th><th>Categoria</th><th>GMV/mês</th><th>Margem%</th><th>Posição</th><th>Status</th></tr></thead>
+            <tbody id="body-c"><tr class="curva-c"><td><input type="text"></td><td><input type="text"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td></tr></tbody></table>
+            <button class="add-row-btn" onclick="addRow('body-c','curva-c')"><i class="ti ti-plus"></i> Adicionar</button>
+          </div>
+          <div class="save-bar"><button class="btn-secondary" onclick="showRxTab('rx-conta')">← Anterior</button><button class="btn-primary" onclick="showRxTab('rx-operacao')">Próximo →</button></div>
+        </div>
+
+        <!-- OPERAÇÃO -->
+        <div class="rx-section" id="rx-operacao">
+          <div class="rx-section-header"><i class="ti ti-truck"></i> Operação Logística</div>
+          <div class="card">
+            <div class="card-title">Fulfillment</div>
+            <div class="status-row" id="sr-fulfillment">
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">FULL (ML)</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Próprio</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Flex</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Cross-docking</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Dropshipping</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Estoque</div>
+            <div class="grid-2">
+              <div><label>Giro médio (dias)</label><input type="number" id="f-giro" placeholder="25"></div>
+              <div><label>Rupturas/mês</label><input type="number" id="f-rupturas" placeholder="3"></div>
+              <div><label>Estoque FULL (un)</label><input type="number" id="f-full" placeholder="500"></div>
+              <div><label>Lead time (dias)</label><input type="number" id="f-lead" placeholder="7"></div>
+              <div><label>Problema principal</label><select id="f-prob-estoque"><option>Nenhum</option><option>Ruptura frequente</option><option>Excesso</option><option>Giro baixo</option><option>Curva A em risco</option></select></div>
+              <div><label>Previsão de demanda</label><select id="f-previsao"><option>Não</option><option>Manual/planilha</option><option>Ferramenta dedicada</option><option>ERP com módulo</option></select></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Pós-venda</div>
+            <div class="grid-2">
+              <div><label>TMA</label><input type="text" id="f-tma" placeholder="Ex: 2h"></div>
+              <div><label>% Devolução</label><input type="number" id="f-devolucao" placeholder="3.5"></div>
+              <div><label>Motivo reclamação</label><input type="text" id="f-motivo" placeholder="Ex: Produto diferente"></div>
+              <div><label>Equipe CS</label><select id="f-cs"><option>Não</option><option>Sim, 1 pessoa</option><option>Sim, equipe</option><option>Terceirizado</option></select></div>
+            </div>
+          </div>
+          <div class="save-bar"><button class="btn-secondary" onclick="showRxTab('rx-produtos')">← Anterior</button><button class="btn-primary" onclick="showRxTab('rx-ads')">Próximo →</button></div>
+        </div>
+
+        <!-- ADS -->
+        <div class="rx-section" id="rx-ads">
+          <div class="rx-section-header"><i class="ti ti-speakerphone"></i> Mercado Ads</div>
+          <div class="card">
+            <div class="card-title">Estrutura</div>
+            <div class="grid-2">
+              <div><label>Product Ads</label><select id="f-product-ads"><option>Não usa</option><option>Sim, automático</option><option>Sim, manual</option><option>Misto</option></select></div>
+              <div><label>Brand Ads</label><select id="f-brand-ads"><option>Não usa</option><option>Sim, ativo</option><option>Sem verba</option></select></div>
+              <div><label>Orçamento mensal (R$)</label><input type="number" id="f-orcamento-ads" placeholder="8000"></div>
+              <div><label>Campanhas ativas</label><input type="number" id="f-campanhas" placeholder="12"></div>
+              <div><label>Segmentação</label>
+                <div class="status-row" id="sr-segmentacao" style="margin-top:4px">
+                  <span class="status-pill" onclick="togglePill(this,'sel-green')">Palavras-chave</span>
+                  <span class="status-pill" onclick="togglePill(this,'sel-green')">Audiências</span>
+                  <span class="status-pill" onclick="togglePill(this,'sel-green')">Automática</span>
+                  <span class="status-pill" onclick="togglePill(this,'sel-green')">Concorrente</span>
+                </div>
+              </div>
+              <div><label>Freq. otimização</label><select id="f-freq-otim"><option>Nunca</option><option>Mensal</option><option>Semanal</option><option>Diário</option></select></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Performance</div>
+            <div class="kpi-row">
+              <div class="kpi-box"><label>ACOS (%)</label><input type="text" id="f-acos" placeholder="0%"></div>
+              <div class="kpi-box"><label>ROAS</label><input type="text" id="f-roas" placeholder="0x"></div>
+              <div class="kpi-box"><label>CTR (%)</label><input type="text" id="f-ctr" placeholder="0%"></div>
+              <div class="kpi-box"><label>Conversão (%)</label><input type="text" id="f-conv" placeholder="0%"></div>
+              <div class="kpi-box"><label>Receita Ads (%)</label><input type="text" id="f-rec-ads" placeholder="0%"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Problemas</div>
+            <div class="status-row" id="sr-problemas-ads">
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">ACOS alto</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Sem conversão</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Sem estratégia</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Curva C consumindo verba</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Sem relatório</span>
+            </div>
+            <div style="margin-top:12px"><label>Observações</label><textarea id="f-obs-ads" placeholder="..."></textarea></div>
+          </div>
+          <div class="save-bar"><button class="btn-secondary" onclick="showRxTab('rx-operacao')">← Anterior</button><button class="btn-primary" onclick="showRxTab('rx-erp')">Próximo →</button></div>
+        </div>
+
+        <!-- ERP -->
+        <div class="rx-section" id="rx-erp">
+          <div class="rx-section-header"><i class="ti ti-database"></i> ERP e Integrações</div>
+          <div class="card">
+            <div class="card-title">Stack tecnológico</div>
+            <div class="grid-2">
+              <div><label>ERP</label><input type="text" id="f-erp" placeholder="Ex: Bling, Tiny..."></div>
+              <div><label>Conector ML</label><input type="text" id="f-conector" placeholder="Ex: Anymarket..."></div>
+              <div><label>Precificação</label><input type="text" id="f-precificacao" placeholder="Ex: Reprecê..."></div>
+              <div><label>BI/Dashboards</label><input type="text" id="f-bi" placeholder="Ex: Power BI..."></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Problemas ativos</div>
+            <div class="status-row" id="sr-problemas-erp">
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Sincronização estoque</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Cadastro produtos</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Precificação automática</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Emissão NF</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-red')">Conciliação financeira</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Funcionando bem</div>
+            <div class="status-row" id="sr-ok-erp">
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Sincronização estoque</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Cadastro produtos</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Precificação automática</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Emissão NF</span>
+              <span class="status-pill" onclick="togglePill(this,'sel-green')">Conciliação financeira</span>
+            </div>
+            <div style="margin-top:12px"><label>Observações</label><textarea id="f-obs-erp" placeholder="..."></textarea></div>
+          </div>
+          <div class="save-bar"><button class="btn-secondary" onclick="showRxTab('rx-ads')">← Anterior</button><button class="btn-primary" onclick="showRxTab('rx-diagnostico')">Diagnóstico →</button></div>
+        </div>
+
+        <!-- DIAGNÓSTICO -->
+        <div class="rx-section" id="rx-diagnostico">
+          <div class="rx-section-header"><i class="ti ti-chart-bar"></i> Diagnóstico Consolidado</div>
+          <div class="diag-grid">
+            <div class="diag-card"><h3><i class="ti ti-shield-check" style="color:var(--yellow-dark)"></i> Saúde da conta</h3>
+              <div class="score-row"><span class="score-label">Reputação</span><div class="score-stars" id="stars-reputacao"><span class="star lit" onclick="setScore('reputacao',1)">★</span><span class="star lit" onclick="setScore('reputacao',2)">★</span><span class="star lit" onclick="setScore('reputacao',3)">★</span><span class="star" onclick="setScore('reputacao',4)">★</span><span class="star" onclick="setScore('reputacao',5)">★</span></div></div>
+              <div class="score-row"><span class="score-label">Crescimento</span><div class="score-stars" id="stars-crescimento"><span class="star lit" onclick="setScore('crescimento',1)">★</span><span class="star lit" onclick="setScore('crescimento',2)">★</span><span class="star" onclick="setScore('crescimento',3)">★</span><span class="star" onclick="setScore('crescimento',4)">★</span><span class="star" onclick="setScore('crescimento',5)">★</span></div></div>
+              <textarea id="f-diag-conta" placeholder="Resumo..." style="margin-top:8px;font-size:12px;min-height:56px"></textarea>
+            </div>
+            <div class="diag-card"><h3><i class="ti ti-package" style="color:var(--yellow-dark)"></i> Portfólio</h3>
+              <div class="score-row"><span class="score-label">Mix</span><div class="score-stars" id="stars-mix"><span class="star lit" onclick="setScore('mix',1)">★</span><span class="star lit" onclick="setScore('mix',2)">★</span><span class="star lit" onclick="setScore('mix',3)">★</span><span class="star" onclick="setScore('mix',4)">★</span><span class="star" onclick="setScore('mix',5)">★</span></div></div>
+              <div class="score-row"><span class="score-label">Qualidade anúncios</span><div class="score-stars" id="stars-anuncios"><span class="star lit" onclick="setScore('anuncios',1)">★</span><span class="star lit" onclick="setScore('anuncios',2)">★</span><span class="star" onclick="setScore('anuncios',3)">★</span><span class="star" onclick="setScore('anuncios',4)">★</span><span class="star" onclick="setScore('anuncios',5)">★</span></div></div>
+              <textarea id="f-diag-produtos" placeholder="Pontos de melhoria..." style="margin-top:8px;font-size:12px;min-height:56px"></textarea>
+            </div>
+            <div class="diag-card"><h3><i class="ti ti-speakerphone" style="color:var(--yellow-dark)"></i> Ads</h3>
+              <div class="score-row"><span class="score-label">Estrutura</span><div class="score-stars" id="stars-estrutura-ads"><span class="star lit" onclick="setScore('estrutura-ads',1)">★</span><span class="star" onclick="setScore('estrutura-ads',2)">★</span><span class="star" onclick="setScore('estrutura-ads',3)">★</span><span class="star" onclick="setScore('estrutura-ads',4)">★</span><span class="star" onclick="setScore('estrutura-ads',5)">★</span></div></div>
+              <div class="score-row"><span class="score-label">ROAS</span><div class="score-stars" id="stars-roas-d"><span class="star lit" onclick="setScore('roas-d',1)">★</span><span class="star lit" onclick="setScore('roas-d',2)">★</span><span class="star" onclick="setScore('roas-d',3)">★</span><span class="star" onclick="setScore('roas-d',4)">★</span><span class="star" onclick="setScore('roas-d',5)">★</span></div></div>
+              <textarea id="f-diag-ads" placeholder="Ações sugeridas..." style="margin-top:8px;font-size:12px;min-height:56px"></textarea>
+            </div>
+            <div class="diag-card"><h3><i class="ti ti-database" style="color:var(--yellow-dark)"></i> ERP</h3>
+              <div class="score-row"><span class="score-label">Maturidade</span><div class="score-stars" id="stars-erp-d"><span class="star lit" onclick="setScore('erp-d',1)">★</span><span class="star lit" onclick="setScore('erp-d',2)">★</span><span class="star" onclick="setScore('erp-d',3)">★</span><span class="star" onclick="setScore('erp-d',4)">★</span><span class="star" onclick="setScore('erp-d',5)">★</span></div></div>
+              <div class="score-row"><span class="score-label">Automação</span><div class="score-stars" id="stars-automacao"><span class="star lit" onclick="setScore('automacao',1)">★</span><span class="star" onclick="setScore('automacao',2)">★</span><span class="star" onclick="setScore('automacao',3)">★</span><span class="star" onclick="setScore('automacao',4)">★</span><span class="star" onclick="setScore('automacao',5)">★</span></div></div>
+              <textarea id="f-diag-erp" placeholder="Correções prioritárias..." style="margin-top:8px;font-size:12px;min-height:56px"></textarea>
+            </div>
+          </div>
+          <div class="card" style="margin-top:1rem">
+            <div class="card-title"><i class="ti ti-list-check"></i> Plano de ação</div>
+            <ul class="action-list" id="action-list">
+              <li><input type="checkbox"><span><strong>Ads:</strong> Reestruturar campanhas — curva A com lances manuais</span><span class="priority-badge p-alta">Alta</span></li>
+              <li><input type="checkbox"><span><strong>Operação:</strong> Mapear SKUs com risco de ruptura</span><span class="priority-badge p-alta">Alta</span></li>
+              <li><input type="checkbox"><span><strong>ERP:</strong> Corrigir sincronização de estoque</span><span class="priority-badge p-media">Média</span></li>
+              <li><input type="checkbox"><span><strong>Produtos:</strong> Revisar títulos e fotos da curva B</span><span class="priority-badge p-media">Média</span></li>
+            </ul>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+              <input type="text" id="new-action" placeholder="Nova ação..." style="flex:1;min-width:180px">
+              <select id="new-priority" style="width:90px"><option value="p-alta">Alta</option><option value="p-media">Média</option><option value="p-baixa">Baixa</option></select>
+              <button class="btn-primary" onclick="addAction()" style="padding:7px 14px">+ Adicionar</button>
+            </div>
+          </div>
+          <div class="save-bar"><button class="btn-secondary" onclick="showRxTab('rx-erp')">← Anterior</button><button class="btn-primary" onclick="showRxTab('rx-kpis')">KPIs →</button></div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="rx-section" id="rx-kpis">
+          <div class="rx-section-head
