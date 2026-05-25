@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script type="module">
+<script type="module">// MODULE START
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -976,3 +976,247 @@ select option{background:var(--bg2);color:var(--text);}
         <!-- KPIs -->
         <div class="rx-section" id="rx-kpis">
           <div class="rx-section-head
+        <!-- KPIs -->
+        <div class="rx-section" id="rx-kpis">
+          <div class="rx-section-header"><i class="ti ti-target"></i> KPIs e Acompanhamento</div>
+          <div class="card">
+            <div class="card-title">Metas</div>
+            <div class="kpi-row">
+              <div class="kpi-box"><label>GMV meta/mês</label><input type="text" id="f-gmv-meta" placeholder="R$"></div>
+              <div class="kpi-box"><label>Margem alvo</label><input type="text" id="f-margem-meta" placeholder="%"></div>
+              <div class="kpi-box"><label>ROAS alvo</label><input type="text" id="f-roas-meta" placeholder="x"></div>
+              <div class="kpi-box"><label>ACOS máx.</label><input type="text" id="f-acos-meta" placeholder="%"></div>
+              <div class="kpi-box"><label>Meta reclamações</label><input type="text" id="f-reclam-meta" placeholder="< %"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Especialistas</div>
+            <div class="grid-2">
+              <div><label>Ads</label><input type="text" id="f-esp-ads" placeholder="Nome"></div>
+              <div><label>Operação</label><input type="text" id="f-esp-op" placeholder="Nome"></div>
+              <div><label>ERP/Tech</label><input type="text" id="f-esp-erp" placeholder="Nome"></div>
+              <div><label>Produtos</label><input type="text" id="f-esp-prod" placeholder="Nome"></div>
+            </div>
+          </div>
+          <div class="save-bar">
+            <button class="btn-secondary" onclick="showRxTab('rx-diagnostico')">← Diagnóstico</button>
+            <button class="btn-pdf" onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
+          </div>
+        </div>
+
+      </div><!-- /page-raiox -->
+    </main>
+  </div><!-- /app-layout -->
+</div><!-- /app-screen -->
+
+<!-- MODAL: NOVO ALUNO -->
+<div class="modal-overlay" id="modal-aluno">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><i class="ti ti-user-plus"></i> Cadastrar Aluno</h2>
+      <button class="modal-close" onclick="fecharModal('modal-aluno')">×</button>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group"><label>Nome completo *</label><input type="text" id="a-nome" placeholder="Ex: João Silva"></div>
+      <div class="form-group"><label>Empresa / loja *</label><input type="text" id="a-empresa" placeholder="Ex: Tech Store ML"></div>
+    </div>
+    <div class="form-group"><label>E-mail</label><input type="text" id="a-email" placeholder="joao@email.com"></div>
+    <div class="form-grid-2">
+      <div class="form-group"><label>Segmento</label>
+        <select id="a-segmento"><option>Mercado Livre</option><option>Multi-canal</option><option>E-commerce próprio</option><option>Distribuidor</option></select>
+      </div>
+      <div class="form-group"><label>Início da mentoria</label><input type="date" id="a-inicio"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="fecharModal('modal-aluno')">Cancelar</button>
+      <button class="btn-primary" onclick="salvarAluno()"><i class="ti ti-check"></i> Cadastrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVA SESSÃO -->
+<div class="modal-overlay" id="modal-sessao">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><i class="ti ti-calendar-plus"></i> Registrar Sessão</h2>
+      <button class="modal-close" onclick="fecharModal('modal-sessao')">×</button>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group"><label>Aluno *</label><select id="s-aluno"><option value="">Selecione...</option></select></div>
+      <div class="form-grid-2" style="gap:8px">
+        <div class="form-group"><label>Nº sessão</label><input type="number" id="s-numero" placeholder="1" min="1"></div>
+        <div class="form-group"><label>Data *</label><input type="date" id="s-data"></div>
+      </div>
+    </div>
+    <div class="form-group"><label>Tema da sessão *</label><input type="text" id="s-tema" placeholder="Ex: Estrutura de Ads e curva A"></div>
+    <div class="form-group"><label>Desafios a resolver</label><textarea id="s-desafios" placeholder="Liste os principais desafios..."></textarea></div>
+    <div class="form-group"><label>Orientações do mentor</label><textarea id="s-orientacoes" placeholder="Diretrizes e recomendações..."></textarea></div>
+    <div class="form-group">
+      <label>Checklist de tarefas</label>
+      <textarea id="s-tarefas" placeholder="Uma tarefa por linha:&#10;Criar campanha para curva A&#10;Ajustar bid das top 5 palavras-chave"></textarea>
+      <div class="form-hint">Digite uma tarefa por linha</div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group"><label>Nota ANTES (0-10)</label><input type="number" id="s-nota-antes" min="0" max="10" placeholder="0"></div>
+      <div class="form-group"><label>Nota DEPOIS (0-10)</label><input type="number" id="s-nota-depois" min="0" max="10" placeholder="0"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="fecharModal('modal-sessao')">Cancelar</button>
+      <button class="btn-primary" onclick="salvarSessao()"><i class="ti ti-check"></i> Salvar sessão</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── UI FUNCTIONS (global scope) ──
+window.showPage = function(id) {
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.sidebar-item').forEach(function(b){b.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  var navId = 'nav-' + id.replace('page-','');
+  var navEl = document.getElementById(navId);
+  if(navEl) navEl.classList.add('active');
+};
+
+window.showMainTab = function(id) {
+  document.querySelectorAll('.sub-page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.sub-tab').forEach(function(b){b.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  var btn = document.getElementById('btn-'+id);
+  if(btn) btn.classList.add('active');
+};
+
+window.showRxTab = function(id) {
+  document.querySelectorAll('.rx-section').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.rx-nav-tab').forEach(function(b){b.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  var tabId = 'rxtab-' + id.replace('rx-','');
+  var tab = document.getElementById(tabId);
+  if(tab) tab.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+
+window.abrirModal = function(id) {
+  document.getElementById(id).classList.add('open');
+};
+
+window.fecharModal = function(id) {
+  document.getElementById(id).classList.remove('open');
+};
+
+window.abrirModalSessaoAluno = function() {
+  if(window.alunoAtual) {
+    document.getElementById('s-aluno').value = window.alunoAtual.id;
+  }
+  window.abrirModal('modal-sessao');
+};
+
+window.showToast = function(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 3000);
+};
+
+window.togglePill = function(el, cls) {
+  var classes = ['sel-green','sel-yellow','sel-red'];
+  var on = classes.some(function(c){ return el.classList.contains(c); });
+  classes.forEach(function(c){ el.classList.remove(c); });
+  if(!on) el.classList.add(cls);
+};
+
+window.addRow = function(tbodyId, rowClass) {
+  var tbody = document.getElementById(tbodyId);
+  var tr = document.createElement('tr'); tr.className = rowClass;
+  tr.innerHTML = '<td><input type="text"></td><td><input type="text"></td><td><input type="number"></td><td><input type="number"></td><td><input type="number"></td><td><select style="font-size:11px;padding:3px 6px"><option>Ativo</option><option>Pausado</option><option>Sem estoque</option></select></td>';
+  tbody.appendChild(tr);
+};
+
+window.setScore = function(id, val) {
+  document.querySelectorAll('#stars-'+id+' .star').forEach(function(s,i){ s.classList.toggle('lit', i < val); });
+};
+
+window.addAction = function() {
+  var txt = document.getElementById('new-action').value.trim(); if(!txt) return;
+  var pri = document.getElementById('new-priority').value;
+  var labels = {'p-alta':'Alta','p-media':'Média','p-baixa':'Baixa'};
+  var li = document.createElement('li');
+  li.innerHTML = '<input type="checkbox"><span>'+txt+'</span><span class="priority-badge '+pri+'">'+(labels[pri]||pri)+'</span>';
+  document.getElementById('action-list').appendChild(li);
+  document.getElementById('new-action').value = '';
+};
+
+function getVal(id){ var el=document.getElementById(id); return el?el.value||'':''; }
+function getScore(id){ return document.querySelectorAll('#stars-'+id+' .star.lit').length; }
+function getPills(rowId){
+  var sel=[];
+  document.querySelectorAll('#'+rowId+' .status-pill').forEach(function(p){
+    if(['sel-green','sel-yellow','sel-red'].some(function(x){return p.classList.contains(x);})) sel.push(p.textContent.trim());
+  });
+  return sel.join(', ')||'—';
+}
+function getActions(){
+  var items=[];
+  document.querySelectorAll('#action-list li').forEach(function(li){
+    var span=li.querySelector('span'); var badge=li.querySelector('.priority-badge');
+    var checked=li.querySelector('input[type=checkbox]').checked;
+    if(span) items.push({text:span.textContent.trim(),pri:badge?badge.textContent.trim():'',done:checked});
+  });
+  return items;
+}
+
+window.gerarPDF = function() {
+  window.showToast('⚡ Gerando PDF...');
+  setTimeout(function(){
+    try{
+      var doc=new window.jspdf.jsPDF({orientation:'p',unit:'mm',format:'a4'});
+      var W=210,margin=14,cw=W-margin*2,y=0;
+      function checkPage(n){if(y+n>272){doc.addPage();y=14;}}
+      function secTitle(txt){checkPage(12);doc.setFillColor(245,197,24);doc.roundedRect(margin,y,cw,8,2,2,'F');doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(42,26,0);doc.text(txt,margin+3,y+5.5);doc.setTextColor(30,30,28);y+=11;}
+      function row2(l1,v1,l2,v2){checkPage(10);var half=(cw-4)/2;doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(90,90,84);doc.text(l1,margin,y+3);if(l2)doc.text(l2,margin+half+4,y+3);doc.setTextColor(30,30,28);doc.setFont('helvetica','bold');doc.text(v1||'-',margin,y+7.5);if(l2)doc.text(v2||'-',margin+half+4,y+7.5);y+=10;}
+      function divider(){checkPage(4);doc.setDrawColor(220,218,210);doc.line(margin,y,W-margin,y);y+=4;}
+      doc.setFillColor(26,26,24);doc.rect(0,0,W,297,'F');
+      doc.setFillColor(245,197,24);doc.rect(0,0,W,2,'F');doc.rect(0,295,W,2,'F');
+      doc.setFontSize(22);doc.setFont('helvetica','bold');doc.setTextColor(245,197,24);
+      doc.text('RAIO X ESTRATEGICO',W/2,80,{align:'center'});
+      doc.setFontSize(14);doc.setTextColor(232,230,222);doc.text('Scall Business - Mercado Livre',W/2,94,{align:'center'});
+      var loja=getVal('f-loja');
+      if(loja){doc.setFontSize(16);doc.setTextColor(245,197,24);doc.text(loja,W/2,115,{align:'center'});}
+      doc.setFontSize(9);doc.setTextColor(100,100,92);
+      doc.text('Gerado em: '+new Date().toLocaleDateString('pt-BR'),W/2,270,{align:'center'});
+      doc.addPage();y=14;secTitle('SAUDE DA CONTA');
+      row2('Loja',getVal('f-loja'),'CNPJ',getVal('f-cnpj'));
+      row2('Nivel',getVal('f-nivel'),'Tempo',getVal('f-tempo')+' anos');
+      row2('Termometro',getVal('f-termometro'),'Restricoes',getVal('f-restricoes'));
+      divider();
+      row2('GMV 30d',getVal('f-gmv30'),'GMV 90d',getVal('f-gmv90'));
+      row2('Pedidos/mes',getVal('f-pedidos'),'Ticket medio',getVal('f-ticket'));
+      doc.addPage();y=14;secTitle('MERCADO ADS');
+      row2('Product Ads',getVal('f-product-ads'),'Brand Ads',getVal('f-brand-ads'));
+      row2('Orcamento','R$ '+getVal('f-orcamento-ads'),'Campanhas',getVal('f-campanhas'));
+      row2('ACOS',getVal('f-acos'),'ROAS',getVal('f-roas'));
+      doc.addPage();y=14;secTitle('ERP E INTEGRACOES');
+      row2('ERP',getVal('f-erp'),'Conector',getVal('f-conector'));
+      var total=doc.internal.getNumberOfPages();
+      for(var pg=2;pg<=total;pg++){
+        doc.setPage(pg);doc.setFontSize(7);doc.setTextColor(160,160,152);
+        doc.text('Scall Business - Raio X Estrategico',margin,291);
+        doc.text('Pag '+pg+'/'+total,W-margin,291,{align:'right'});
+        doc.setDrawColor(245,197,24);doc.line(margin,288,W-margin,288);
+      }
+      doc.save('RaioX_Scall_'+new Date().toISOString().slice(0,10)+'.pdf');
+      window.showToast('PDF gerado!');
+    }catch(e){console.error(e);window.showToast('Erro ao gerar PDF.');}
+  },200);
+};
+
+// Fechar modal clicando fora
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.modal-overlay').forEach(function(overlay){
+    overlay.addEventListener('click', function(e){
+      if(e.target===overlay) overlay.classList.remove('open');
+    });
+  });
+});
+</script>
+</body>
+</html>
