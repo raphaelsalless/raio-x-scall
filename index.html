@@ -566,14 +566,14 @@ input[title]:hover::after,select[title]:hover::after,button[title]:hover::after,
 .login-left-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(10,10,14,0.2) 0%,rgba(10,10,14,0.3) 50%,rgba(10,10,14,0.85) 100%);}
 .login-left-content{position:relative;z-index:2;}
 .login-left-logo{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;}
-.login-left-logo-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#4F46E5,#3730A3);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 24px rgba(79,70,229,0.4);}
+.login-left-logo-icon{width:52px;height:52px;display:flex;align-items:center;justify-content:center;background:none;border:none;}
 .login-left-logo-text{font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px;}
 .login-left-tagline{font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;max-width:320px;}
 .login-left-bar{width:48px;height:3px;background:linear-gradient(90deg,#4F46E5,#F59E0B);border-radius:2px;margin-bottom:12px;}
 .login-right{width:440px;flex-shrink:0;background:#0F0F13;border-left:0.5px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;padding:2.5rem;}
 .login-card{width:100%;text-align:center;}
 .login-topbar{height:3px;background:linear-gradient(90deg,#4F46E5,#F59E0B,#10B981);border-radius:3px;margin-bottom:2.5rem;}
-.login-logo{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#4F46E5,#3730A3);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 1.25rem;border:0.5px solid rgba(99,91,255,0.4);box-shadow:0 8px 24px rgba(79,70,229,0.3);}
+.login-logo{width:80px;height:80px;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;background:none;border:none;box-shadow:none;}
 .login-card h1{font-size:22px;font-weight:700;color:#F1F0FF;margin-bottom:4px;}
 .login-card p{font-size:13px;color:#9B99C3;margin-bottom:2rem;line-height:1.6;}
 .login-divider{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;}
@@ -602,7 +602,7 @@ input[title]:hover::after,select[title]:hover::after,button[title]:hover::after,
 .sidebar{width:220px;background:var(--bg2);border-right:0.5px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;}
 .sidebar-topbar{height:3px;background:linear-gradient(90deg,#4F46E5,#F59E0B,#10B981);}
 .sidebar-logo{padding:1rem 1rem .875rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px;}
-.sidebar-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#4F46E5,#3730A3);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 4px 12px rgba(79,70,229,0.4);}
+.sidebar-logo-icon{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:none;border:none;}
 .sidebar-logo-text h2{font-size:13px;font-weight:700;color:var(--text);}
 .sidebar-logo-text p{font-size:10px;color:var(--text3);}
 .sidebar-nav{flex:1;padding:.75rem .5rem;overflow-y:auto;}
@@ -821,7 +821,7 @@ select option{background:var(--bg2);color:var(--text);}
     <div class="login-left-overlay"></div>
     <div class="login-left-content">
       <div class="login-left-logo">
-        <div class="login-left-logo-icon"><img src="https://raphaelsalless.github.io/raio-x-scall/logoscall.png" style="width:28px;height:28px;object-fit:contain;"></div>
+        <div class="login-left-logo-icon"><img src="https://raphaelsalless.github.io/raio-x-scall/logoscall.png" style="width:44px;height:44px;object-fit:contain;filter:drop-shadow(0 4px 12px rgba(255,255,255,0.2));"></div>
         <div class="login-left-logo-text">Scall Business</div>
       </div>
       <div class="login-left-bar"></div>
@@ -832,7 +832,7 @@ select option{background:var(--bg2);color:var(--text);}
   <div class="login-right">
     <div class="login-card">
       <div class="login-topbar"></div>
-      <div class="login-logo"><img src="https://raphaelsalless.github.io/raio-x-scall/logoscall.png" style="width:36px;height:36px;object-fit:contain;"></div>
+      <div class="login-logo"><img src="https://raphaelsalless.github.io/raio-x-scall/logoscall.png" style="width:72px;height:72px;object-fit:contain;filter:drop-shadow(0 4px 16px rgba(79,70,229,0.4));"></div>
       <h1>Bem-vindo de volta</h1>
       <p>Acesse sua conta para continuar<br>gerenciando sua mentoria</p>
       <div class="login-divider"><span>Entre com sua conta Google</span></div>
@@ -855,7 +855,7 @@ select option{background:var(--bg2);color:var(--text);}
 <div class="app-layout">
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <div class="sidebar-logo-icon"><img src="https://raphaelsalless.github.io/raio-x-scall/logoscall.png" style="width:22px;height:22px;object-fit:contain;"></div>
+      <div class="sidebar-logo-icon"><img src="https://raphaelsalless.github.io/raio-x-scall/logoscall.png" style="width:28px;height:28px;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(79,70,229,0.4));"></div>
       <div class="sidebar-logo-text"><h2>Scall Business</h2><p>Mentoria ML</p></div>
     </div>
     <nav class="sidebar-nav">
