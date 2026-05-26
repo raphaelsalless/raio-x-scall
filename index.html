@@ -560,30 +560,38 @@ input[title]:hover::after,select[title]:hover::after,button[title]:hover::after,
 }
 
 /* LOGIN */
-#login-screen{display:flex;align-items:center;justify-content:flex-end;min-height:100vh;padding:2rem 5% 2rem 2rem;position:relative;overflow:hidden;background:#0a0a0e;}
-#login-bg{position:absolute;inset:0;background-image:url('https://raphaelsalless.github.io/raio-x-scall/bg-login.png');background-size:cover;background-position:center top;opacity:0.55;z-index:0;}
-#login-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(10,10,14,0.85) 0%,rgba(15,15,30,0.7) 50%,rgba(10,10,14,0.9) 100%);z-index:1;}
-.login-card{position:relative;z-index:2;background:rgba(14,14,22,0.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:0.5px solid rgba(255,255,255,0.10);border-radius:20px;padding:2.5rem 2rem;max-width:400px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,0.6),inset 0 0.5px 0 rgba(255,255,255,0.08);}
-.login-topbar{height:3px;background:linear-gradient(90deg,#4F46E5,#F59E0B,#10B981);border-radius:3px 3px 0 0;position:absolute;top:0;left:0;right:0;}
-.login-logo{width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,#4F46E5,#3730A3);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 1.25rem;border:0.5px solid rgba(99,91,255,0.4);box-shadow:0 8px 24px rgba(79,70,229,0.3);}
+#login-screen{display:flex;min-height:100vh;background:#0a0a0e;}
+.login-left{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:2.5rem;}
+.login-left-bg{position:absolute;inset:0;background-image:url('https://raphaelsalless.github.io/raio-x-scall/bg-login.png');background-size:cover;background-position:center top;}
+.login-left-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(10,10,14,0.2) 0%,rgba(10,10,14,0.3) 50%,rgba(10,10,14,0.85) 100%);}
+.login-left-content{position:relative;z-index:2;}
+.login-left-logo{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem;}
+.login-left-logo-icon{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#4F46E5,#3730A3);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 24px rgba(79,70,229,0.4);}
+.login-left-logo-text{font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.3px;}
+.login-left-tagline{font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;max-width:320px;}
+.login-left-bar{width:48px;height:3px;background:linear-gradient(90deg,#4F46E5,#F59E0B);border-radius:2px;margin-bottom:12px;}
+.login-right{width:440px;flex-shrink:0;background:#0F0F13;border-left:0.5px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;padding:2.5rem;}
+.login-card{width:100%;text-align:center;}
+.login-topbar{height:3px;background:linear-gradient(90deg,#4F46E5,#F59E0B,#10B981);border-radius:3px;margin-bottom:2.5rem;}
+.login-logo{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#4F46E5,#3730A3);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 1.25rem;border:0.5px solid rgba(99,91,255,0.4);box-shadow:0 8px 24px rgba(79,70,229,0.3);}
 .login-card h1{font-size:22px;font-weight:700;color:#F1F0FF;margin-bottom:4px;}
-.login-card p{font-size:13px;color:#9B99C3;margin-bottom:1.75rem;line-height:1.6;}
+.login-card p{font-size:13px;color:#9B99C3;margin-bottom:2rem;line-height:1.6;}
 .login-divider{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;}
 .login-divider span{font-size:11px;color:#5C5A7A;white-space:nowrap;}
 .login-divider::before,.login-divider::after{content:"";flex:1;height:0.5px;background:rgba(255,255,255,0.08);}
-.btn-google{width:100%;padding:12px 16px;border-radius:12px;background:#fff;color:#1a1a18;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;}
-.btn-google:hover{background:#f0f0f0;transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,0.3);}
+.btn-google{width:100%;padding:13px 16px;border-radius:12px;background:#fff;color:#1a1a18;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;}
+.btn-google:hover{background:#f0f0f0;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4);}
 .btn-google img{width:20px;height:20px;}
-.login-error{display:none;margin-top:1rem;padding:10px 14px;background:rgba(180,40,40,0.15);border:0.5px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;color:#F87171;}
-.login-badge{margin-top:1.25rem;padding:8px 14px;background:rgba(79,70,229,0.08);border:0.5px solid rgba(79,70,229,0.2);border-radius:10px;font-size:11px;color:#818CF8;}
-.login-stats{display:flex;gap:8px;margin-top:1.25rem;justify-content:center;}
-.login-stat{background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:8px 14px;font-size:11px;color:#9B99C3;display:flex;align-items:center;gap:6px;}
-.login-stat-dot{width:6px;height:6px;border-radius:50%;}
-@media(max-width:600px){
-  #login-bg{background-position:center center;opacity:0.45;}
-  .login-card{padding:2rem 1.5rem;border-radius:16px;max-width:100%;}
-  #login-screen{padding:1rem;align-items:flex-end;justify-content:center;padding-bottom:2rem;}
-  .login-stats{flex-wrap:wrap;}
+.login-error{display:none;margin-top:1rem;padding:10px 14px;background:rgba(180,40,40,0.15);border:0.5px solid rgba(239,68,68,0.3);border-radius:8px;font-size:12px;color:#F87171;text-align:left;}
+.login-badge{margin-top:1.25rem;padding:9px 14px;background:rgba(79,70,229,0.08);border:0.5px solid rgba(79,70,229,0.2);border-radius:10px;font-size:11px;color:#818CF8;}
+.login-stats{display:flex;gap:8px;margin-top:1rem;justify-content:center;flex-wrap:wrap;}
+.login-stat{background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.07);border-radius:10px;padding:7px 12px;font-size:11px;color:#9B99C3;display:flex;align-items:center;gap:6px;}
+.login-stat-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+@media(max-width:768px){
+  #login-screen{flex-direction:column;}
+  .login-left{min-height:260px;flex:none;width:100%;justify-content:flex-end;padding:1.5rem;}
+  .login-right{width:100%;border-left:none;border-top:0.5px solid rgba(255,255,255,0.07);padding:2rem 1.5rem;flex:1;}
+  .login-topbar{margin-bottom:1.75rem;}
 }
 
 /* APP */
@@ -807,23 +815,37 @@ select option{background:var(--bg2);color:var(--text);}
 
 <!-- LOGIN -->
 <div id="login-screen">
-  <div id="login-bg"></div>
-  <div id="login-overlay"></div>
-  <div class="login-card">
-    <div class="login-topbar"></div>
-    <div class="login-logo">⚡</div>
-    <h1>Scall Business</h1>
-    <p>Plataforma de Mentoria<br>Mercado Livre · Acesso exclusivo</p>
-    <div class="login-divider"><span>Entre com sua conta Google</span></div>
-    <button class="btn-google" onclick="fazerLogin()">
-      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
-      Entrar com Google
-    </button>
-    <div id="login-error" class="login-error"></div>
-    <div class="login-badge">🔒 Apenas e-mails autorizados pela Scall Business</div>
-    <div class="login-stats">
-      <div class="login-stat"><div class="login-stat-dot" style="background:#4F46E5"></div>Mentoria ML</div>
-      <div class="login-stat"><div class="login-stat-dot" style="background:#10B981"></div>Raio X Estratégico</div>
+  <!-- LADO ESQUERDO: imagem + logo -->
+  <div class="login-left">
+    <div class="login-left-bg"></div>
+    <div class="login-left-overlay"></div>
+    <div class="login-left-content">
+      <div class="login-left-logo">
+        <div class="login-left-logo-icon">⚡</div>
+        <div class="login-left-logo-text">Scall Business</div>
+      </div>
+      <div class="login-left-bar"></div>
+      <div class="login-left-tagline">Plataforma exclusiva de mentoria<br>para operadores do Mercado Livre.</div>
+    </div>
+  </div>
+  <!-- LADO DIREITO: formulário de login -->
+  <div class="login-right">
+    <div class="login-card">
+      <div class="login-topbar"></div>
+      <div class="login-logo">⚡</div>
+      <h1>Bem-vindo de volta</h1>
+      <p>Acesse sua conta para continuar<br>gerenciando sua mentoria</p>
+      <div class="login-divider"><span>Entre com sua conta Google</span></div>
+      <button class="btn-google" onclick="fazerLogin()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+        Entrar com Google
+      </button>
+      <div id="login-error" class="login-error"></div>
+      <div class="login-badge">🔒 Apenas e-mails autorizados pela Scall Business</div>
+      <div class="login-stats">
+        <div class="login-stat"><div class="login-stat-dot" style="background:#4F46E5"></div>Mentoria ML</div>
+        <div class="login-stat"><div class="login-stat-dot" style="background:#10B981"></div>Raio X Estratégico</div>
+      </div>
     </div>
   </div>
 </div>
