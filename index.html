@@ -448,13 +448,13 @@ window.renderDashboard = function(alunoId) {
   const fatTotal=fatVals.reduce((a,b)=>a+b,0);
   const fatMelhor=Math.max(...fatVals);
 
-  document.getElementById('kpi-sessoes').textContent=totalSessoes;
-  document.getElementById('kpi-tarefas').textContent=pctTarefas+'%';
-  document.getElementById('kpi-nota').textContent=ultimaNota+'/10';
-  document.getElementById('kpi-evolucao').textContent=(evolucao>=0?'+':'')+evolucao+' pts';
-  document.getElementById('kpi-evolucao').style.color=evolucao>=0?'#70c870':'#e07070';
-  document.getElementById('kpi-fat-total').textContent=fatTotal?'R$ '+fatTotal.toLocaleString('pt-BR',{minimumFractionDigits:0}):'—';
-  document.getElementById('kpi-fat-melhor').textContent=fatMelhor?'R$ '+fatMelhor.toLocaleString('pt-BR',{minimumFractionDigits:0}):'—';
+  function setKPI(id,val,extra){const el=document.getElementById(id);if(el){el.textContent=val;if(extra)Object.assign(el.style,extra);}}
+  setKPI('kpi-sessoes',totalSessoes);
+  setKPI('kpi-tarefas',pctTarefas+'%');
+  setKPI('kpi-nota',ultimaNota+'/10');
+  setKPI('kpi-evolucao',(evolucao>=0?'+':'')+evolucao+' pts',{color:evolucao>=0?'#70c870':'#e07070'});
+  setKPI('kpi-fat-total',fatTotal?'R$ '+fatTotal.toLocaleString('pt-BR',{minimumFractionDigits:0}):'—');
+  setKPI('kpi-fat-melhor',fatMelhor?'R$ '+fatMelhor.toLocaleString('pt-BR',{minimumFractionDigits:0}):'—');
 
   // Gráfico faturamento mensal
   if(temFat){
